@@ -29,6 +29,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
@@ -58,9 +59,11 @@ public class BluetoothChatService extends Service{
     public static final int STATE_LISTEN = 1;     // now listening for incoming connections
     public static final int STATE_CONNECTING = 2; // now initiating an outgoing connection
     public static final int STATE_CONNECTED = 3;  // now connected to a remote device
+
     private static final String TAG = "BluetoothChatService";       // Debugging
     private static final String NAME = "BluetoothChat"; // Name for the SDP record when creating server socket
     private static final UUID MY_UUID =UUID.fromString("61a769d5-1874-45d0-8545-2285d8f9c878");     // Unique UUID for this application
+
     public static SQLiteDatabase db;
     // Member fields
     private final BluetoothAdapter mAdapter;
@@ -70,8 +73,7 @@ public class BluetoothChatService extends Service{
     Context context;
     private ServerThread mServerThread;
     private ClientThread mClientThread;
-    private ConnectionManager mConnectionManagerThread;
-    private int mState;
+    private PostManThread mPostManThread;
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -85,11 +87,21 @@ public class BluetoothChatService extends Service{
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 Log.i(TAG, "Discovery Finished");
                 mAdapter.cancelDiscovery();
-                connectToDevices();
-
+                mPostManThread = new PostManThread(messages, devices);
+                mPostManThread.start();
             }
+            /*
+            if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
+                Log.i(TAG, "Wifi Scan Finished");
+                wifi.setWifiEnabled(false);
+                writeLog(wifi.getScanResults().toString());
+
+            }*/
         }
     };
+    private ConnectionManager mConnectionManagerThread;
+    private int mState;
+    private WifiManager wifi;
 
     /**
      * Constructor. Prepares a new BluetoothChat session.
@@ -108,12 +120,9 @@ public class BluetoothChatService extends Service{
         messages = new ArrayList<BtMessage>();
 
         this.context = context;
-        //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-        if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
-        if (!mAdapter.isEnabled()) {
-            mAdapter.disable();
-            mAdapter.enable();
-        }
+        context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+        //if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
+
 
         //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0));
         if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
@@ -123,8 +132,21 @@ public class BluetoothChatService extends Service{
             context.startActivity(discoverableIntent);
         }
 
+        //wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
         context.registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
         context.registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
+        //context.registerReceiver(bReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+
+        final Timer myTimer = new Timer();
+        myTimer.schedule(new TimerTask() {
+            public void run() {
+                if (messages != null && getState() == STATE_LISTEN) {
+
+                }
+            }
+
+        }, 0, 20000);
     }
 
     @Override
@@ -163,17 +185,29 @@ public class BluetoothChatService extends Service{
         messages.add(Item);
         mAdapter.startDiscovery();
         Log.i(TAG, "Starting Discovery");
+        final Timer myTimer = new Timer();
+        myTimer.schedule(new TimerTask() {
+            public void run() {
+                if (mAdapter.isDiscovering()) {
+                    Log.i(TAG, "Discovering Time Exceeded");
+                    mAdapter.cancelDiscovery();
+                    myTimer.cancel();
+                }
+            }
+
+        }, 20000);
 
     }
 
+    /*
     public void connectToDevices(){
         if(devices != null){
-            for (int x = 0; x < devices.size(); x++) {
-                connect(mAdapter.getRemoteDevice(devices.get(x)));
+            for (String device : devices) {
+                connect(mAdapter.getRemoteDevice(device));
                 Log.i(TAG, "Waiting until STATE_CONNECTED");
                 final Timer myTimer = new Timer();
                 myTimer.schedule(new TimerTask() {
-                    public void run() {
+                    public void run() {     //Check periodically if a connection has been stablished.
                         if (getState() == STATE_CONNECTED) {
                             sendMessages();
                             myTimer.cancel();
@@ -183,12 +217,36 @@ public class BluetoothChatService extends Service{
 
                 }, 0, 1000);
 
+
             }
         }
         //stop();
         //BluetoothChatService.this.start();
 
+    }*/
+
+
+
+
+    /*public void startLog(){
+        Log.i(TAG,"Wifi Scan Initiated");
+        if (wifi.isWifiEnabled() == false) wifi.setWifiEnabled(true);
+        wifi.startScan();
     }
+
+    public void writeLog(String results){
+        try {
+            FileWriter fstream = new FileWriter(Environment.getExternalStorageDirectory().getPath() + "/btlog.txt",true);
+            PrintWriter out = new PrintWriter(fstream);
+            out.print("\n\n");
+            out.print(new SimpleDateFormat("mm.HH.dd.MM.yyyy").format(new Date()) +"\t"+ devices.toString() +"\t"+results);
+            out.close();
+
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+    }*/
+
 
     public void sendMessages(){
         for (int i = 0; i < messages.size(); i++) {
@@ -257,7 +315,7 @@ public class BluetoothChatService extends Service{
      * @param device The BluetoothDevice to connect
      */
     public synchronized void connect(BluetoothDevice device) {
-        Log.d(TAG, "Connect to " + device);
+        Log.d(TAG, "Connecting to " + device);
 
         // Cancel any thread attempting to make a connection
         if (mState == STATE_CONNECTING) {
@@ -318,7 +376,6 @@ public class BluetoothChatService extends Service{
         mConnectionManagerThread.start();
         Log.i(TAG, "Connected to " + address);
         setState(STATE_CONNECTED);
-        //sendMessages();
     }
 
     /**
@@ -367,8 +424,7 @@ public class BluetoothChatService extends Service{
      */
     private void connectionLost() {
         Log.e(TAG, "Device connection was lost");
-        // Start the service over to restart listening mode
-        BluetoothChatService.this.start();
+        BluetoothChatService.this.start();          // Start the service over to restart listening mode
     }
 
     /**
@@ -393,7 +449,7 @@ public class BluetoothChatService extends Service{
         }
 
         public void run() {
-            Log.d(TAG, "Socket BEGIN mServerThread" + this);
+            Log.d(TAG, "Socket BEGIN mServerThread: " + this);
 
             BluetoothSocket socket = null;
 
@@ -450,6 +506,68 @@ public class BluetoothChatService extends Service{
         }
     }
 
+
+
+            /*
+    public void connectToDevices(){
+        if(devices != null){
+            for (String device : devices) {
+                connect(mAdapter.getRemoteDevice(device));
+                Log.i(TAG, "Waiting until STATE_CONNECTED");
+                final Timer myTimer = new Timer();
+                myTimer.schedule(new TimerTask() {
+                    public void run() {     //Check periodically if a connection has been stablished.
+                        if (getState() == STATE_CONNECTED) {
+                            sendMessages();
+                            myTimer.cancel();
+                            //myTimer.purge();
+                        }
+                    }
+
+                }, 0, 1000);
+
+
+            }
+        }
+        //stop();
+        //BluetoothChatService.this.start();
+
+    }*/
+
+    private class PostManThread extends Thread {
+
+        ArrayList<BtMessage> messages;
+        ArrayList<String> devices;
+
+        public PostManThread(ArrayList<BtMessage> messages, ArrayList<String> devices) {
+            this.messages = messages;
+            this.devices = devices;
+        }
+
+        public void run() {
+            Log.i(TAG, "BEGIN mPostManThread");
+            Log.i(TAG, devices.toString());
+            for (String device : devices) {
+                Log.i(TAG, device.toString());
+                for (BtMessage message : messages) {
+                    connect(mAdapter.getRemoteDevice(device));
+                    Log.i(TAG, "Waiting until STATE_CONNECTED");
+                    while (BluetoothChatService.this.getState() != STATE_CONNECTED) {
+                    }
+                    Log.i(TAG, "Sending " + message.toJson());
+                    write(message.toJson().getBytes());
+                    BluetoothChatService.this.stop();
+                    while (BluetoothChatService.this.getState() != STATE_NONE || BluetoothChatService.this.getState() != STATE_LISTEN) {
+                    }
+
+                }
+
+            }
+            Log.i(TAG, "END mPostManThread");
+            BluetoothChatService.this.start();
+
+        }
+    }
     /**
      * This thread runs while attempting to make an outgoing connection
      * with a device. It runs straight through; the connection either
@@ -558,13 +676,18 @@ public class BluetoothChatService extends Service{
                     try {
 
                         json_object = new JSONObject(readMessage);
-                        addToDb(new BtMessage(json_object, "NONE"));
-                        mHandler.obtainMessage(Constants.MESSAGE_READ, 12, -1, "New Message!").sendToTarget();                       // Send the obtained bytes to the UI Activity
+                        BtMessage item = new BtMessage(json_object, "NONE");
+                        addToDb(item);
+                        Msgnotify(item);
+                        mHandler.obtainMessage(Constants.MESSAGE_READ, item.tag.length(), -1, item.tag).sendToTarget();                       // Send the obtained bytes to the UI Activity
 
                     }
                     catch(Exception e){
-                       Log.e(TAG,"Impossible to parse JSON");
+                        Log.e(TAG, "Impossible to parse JSON");
                     }
+
+                    json_object = null;
+
                     // Send the obtained bytes to the UI Activity
 
                 } catch (IOException e) {
@@ -589,7 +712,7 @@ public class BluetoothChatService extends Service{
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
-            cancel();
+            //BluetoothChatService.this.start();            POSTMAN LO HA QUITADO
         }
 
         public void cancel() {

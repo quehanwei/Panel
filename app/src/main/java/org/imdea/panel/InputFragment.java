@@ -30,11 +30,11 @@ import android.widget.Toast;
 
 public class InputFragment extends DialogFragment {
 
-    private EditText mEditText;
-    private Boolean isTag;
     Button btn;
     String Tag;
     SharedPreferences SP;
+    private EditText mEditText;
+    private Boolean isTag;
     public InputFragment() {
         // Empty constructor required for DialogFragment
     }
@@ -97,6 +97,7 @@ public class InputFragment extends DialogFragment {
                             DBHelper.insertMessage(MainActivity.db, item);
                             GeneralFragment.refresh();
                             MainActivity.mChatService.addMessage(item);
+
                         }
 
                     }

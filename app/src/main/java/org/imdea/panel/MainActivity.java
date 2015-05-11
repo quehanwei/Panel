@@ -17,10 +17,6 @@ package org.imdea.panel;
 
 import android.app.ActionBar;
 import android.app.FragmentTransaction;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
-import android.content.Context;
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
@@ -28,9 +24,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -39,13 +33,49 @@ import org.imdea.panel.adapter.TabsPagerAdapter;
 
 public class MainActivity extends FragmentActivity implements ActionBar.TabListener {
 
-    private ViewPager viewPager;
-    private ActionBar actionbar;
     public static FragmentManager fm;
     public static SQLiteDatabase db;
-
     public static BluetoothChatService mChatService = null;
-    private String mConnectedDeviceName = null;
+    /**
+     * The Handler that gets information back from the BluetoothChatService
+     */
+    private final Handler mHandler = new Handler() {
+
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case Constants.MESSAGE_STATE_CHANGE:
+                    /*switch (msg.arg1) {
+                        case BluetoothChatService.STATE_CONNECTED:
+                            break;
+                        case BluetoothChatService.STATE_CONNECTING:
+                            break;
+                        case BluetoothChatService.STATE_LISTEN:
+                        case BluetoothChatService.STATE_NONE:
+                            break;
+                    }*/
+                    break;
+                case Constants.MESSAGE_WRITE:   // I'm sending the message
+                    break;
+                case Constants.MESSAGE_READ:    // I'm receiving the Message
+                    //byte[] readBuf = (byte[]) msg.obj;
+                    // construct a string from the valid bytes in the buffer
+                    //String readMessage = new String(readBuf, 0, msg.arg1);
+                    //Log.i("RXMESG",readMessage);
+                    //Toast.makeText(getApplicationContext(), readMessage, Toast.LENGTH_SHORT).show();
+                    GeneralFragment.refresh();
+                    //mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+                    break;
+
+                case Constants.MESSAGE_TOAST:
+                    if (null != this) {
+                        Toast.makeText(getApplicationContext(), msg.getData().getString(Constants.TOAST), Toast.LENGTH_LONG).show();
+                    }
+                    break;
+            }
+        }
+    };
+    private ViewPager viewPager;
+    private ActionBar actionbar;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,18 +116,13 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
-        //db = openOrCreateDatabase("DB_msg",MODE_MULTI_PROCESS,null);
-
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
         DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
         db = msg_database.getWritableDatabase();
-        //DBHelper.createFake(db)
-
         // Initialize the BluetoothChatService to perform bluetooth connections
         if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -176,54 +201,12 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     public void onTabReselected(ActionBar.Tab tab, FragmentTransaction ft) {
 
     }
+
     protected void onDestroy(Bundle savedInstance) {
         db.close();
         //FtpUpload uploadData = new FtpUpload();
         //mChatService.stop();
 
     }
-
-    /**
-     * The Handler that gets information back from the BluetoothChatService
-     */
-    private final Handler mHandler = new Handler() {
-
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case Constants.MESSAGE_STATE_CHANGE:
-                    /*switch (msg.arg1) {
-                        case BluetoothChatService.STATE_CONNECTED:
-                            break;
-                        case BluetoothChatService.STATE_CONNECTING:
-                            break;
-                        case BluetoothChatService.STATE_LISTEN:
-                        case BluetoothChatService.STATE_NONE:
-                            break;
-                    }*/
-                    break;
-                case Constants.MESSAGE_WRITE:   // I'm sending the message
-                    byte[] writeBuf = (byte[]) msg.obj;
-                    // construct a string from the buffer
-                    //String writeMessage = new String(writeBuf);
-                    //mConversationArrayAdapter.add("Me:  " + writeMessage);
-                    break;
-                case Constants.MESSAGE_READ:    // I'm receiving the Message
-                    //byte[] readBuf = (byte[]) msg.obj;
-                    // construct a string from the valid bytes in the buffer
-                    //String readMessage = new String(readBuf, 0, msg.arg1);
-                    //Log.i("RXMESG",readMessage);
-                    //Toast.makeText(getApplicationContext(), readMessage, Toast.LENGTH_SHORT).show();
-                    GeneralFragment.refresh();
-                    //mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
-                    break;
-
-                case Constants.MESSAGE_TOAST:
-                    if (null != this) {
-                        Toast.makeText(getApplicationContext(), msg.getData().getString(Constants.TOAST),Toast.LENGTH_LONG).show();
-                    }
-                    break;
-            }
-        }
-    };
 
 }

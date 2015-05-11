@@ -21,6 +21,8 @@ import android.bluetooth.BluetoothAdapter;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -123,6 +125,18 @@ public class BtMessage {
             e.printStackTrace();
         }
         return object.toString();
+    }
+
+    public String tohash() {
+        String s = "";
+        try {
+            MessageDigest m = MessageDigest.getInstance("MD5");
+            m.update(this.toString().getBytes(), 0, this.toString().length());
+            s = new BigInteger(1, m.digest()).toString(16);
+        } catch (Exception e) {
+
+        }
+        return s;
     }
 
 }
