@@ -38,7 +38,6 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Timer;
@@ -54,34 +53,43 @@ import java.util.UUID;
 public class BluetoothChatService extends Service{
 
 
-    private static final String TAG = "BluetoothChatService";       // Debugging
-    private static final String NAME = "BluetoothChat"; // Name for the SDP record when creating server socket
-    private static final UUID MY_UUID =UUID.fromString("61a769d5-1874-45d0-8545-2285d8f9c878");     // Unique UUID for this application
-
-    // Member fields
-    private final BluetoothAdapter mAdapter;
-    private final Handler mHandler;
-    private ServerThread mServerThread;
-    private ClientThread mClientThread;
-    private ConnectionManager mConnectionManagerThread;
-    private int mState;
-
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
     public static final int STATE_LISTEN = 1;     // now listening for incoming connections
     public static final int STATE_CONNECTING = 2; // now initiating an outgoing connection
     public static final int STATE_CONNECTED = 3;  // now connected to a remote device
-
+    private static final String TAG = "BluetoothChatService";       // Debugging
+    private static final String NAME = "BluetoothChat"; // Name for the SDP record when creating server socket
+    private static final UUID MY_UUID =UUID.fromString("61a769d5-1874-45d0-8545-2285d8f9c878");     // Unique UUID for this application
+    public static SQLiteDatabase db;
+    // Member fields
+    private final BluetoothAdapter mAdapter;
+    private final Handler mHandler;
     ArrayList<String> devices;  //List of detected devices
     ArrayList<BtMessage> messages;
-    public static SQLiteDatabase db;
-
     Context context;
+    private ServerThread mServerThread;
+    private ClientThread mClientThread;
+    private ConnectionManager mConnectionManagerThread;
+    private int mState;
+    final BroadcastReceiver bReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {              // When discovery finds a device
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);                   // Get the BluetoothDevice object from the Intent
+                if (isNew(devices, device.getAddress())) {
+                    Log.i(TAG, "Found " + device.getAddress());
+                    devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
+                }
+            }
+            if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                Log.i(TAG, "Discovery Finished");
+                mAdapter.cancelDiscovery();
+                connectToDevices();
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+            }
+        }
+    };
 
     /**
      * Constructor. Prepares a new BluetoothChat session.
@@ -102,9 +110,14 @@ public class BluetoothChatService extends Service{
         this.context = context;
         //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
         if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
+        if (!mAdapter.isEnabled()) {
+            mAdapter.disable();
+            mAdapter.enable();
+        }
 
         //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0));
         if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
             context.startActivity(discoverableIntent);
@@ -114,25 +127,10 @@ public class BluetoothChatService extends Service{
         context.registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
     }
 
-
-    final BroadcastReceiver bReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {              // When discovery finds a device
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);                   // Get the BluetoothDevice object from the Intent
-                if(isNew(devices,device.getAddress()))  {
-                    Log.i(TAG,"Found " + device.getAddress());
-                    devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
-                }
-            }
-            if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)){
-                Log.i(TAG,"Discovery Finished");
-                mAdapter.cancelDiscovery();
-                connectToDevices();
-
-            }
-        }
-    };
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
 
     /**
      * Check if the new address is already stored on the arraylist
@@ -195,12 +193,19 @@ public class BluetoothChatService extends Service{
     public void sendMessages(){
         for (int i = 0; i < messages.size(); i++) {
 
-            Log.i(TAG, "Sending "+ messages.get(i).toJson());
+            Log.i(TAG, "Sending " + messages.get(i).toJson());
             write(messages.get(i).toJson().getBytes());
 
             //Log.i(TAG, "Sending "+ messages.get(i).msg.getBytes());
             //write(messages.get(i).msg.getBytes());
         }
+    }
+
+    /**
+     * Return the current connection state.
+     */
+    public synchronized int getState() {
+        return mState;
     }
 
     /**
@@ -214,13 +219,6 @@ public class BluetoothChatService extends Service{
 
         // Give the new state to the Handler so the UI Activity can update
         mHandler.obtainMessage(Constants.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
-    }
-
-    /**
-     * Return the current connection state.
-     */
-    public synchronized int getState() {
-        return mState;
     }
 
     /**
@@ -489,7 +487,7 @@ public class BluetoothChatService extends Service{
                     Log.e(TAG, "unable to close() socket during connection failure", e2);
                 }
                 Log.e(TAG, "Unable to connect device",e);
-                //BluetoothChatService.this.stop();
+                BluetoothChatService.this.stop();
                 BluetoothChatService.this.start();  // Start the service again to restart listening mode
                 return;
             }
@@ -591,6 +589,7 @@ public class BluetoothChatService extends Service{
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
+            cancel();
         }
 
         public void cancel() {
