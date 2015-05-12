@@ -33,6 +33,8 @@ public class BtMessage {
     public String tag;
     public String time;
     public String date;
+    public String rdate;
+    public String rtime;
     public String mac_address;
     public int hits;
     public boolean isGeneral;
@@ -72,7 +74,7 @@ public class BtMessage {
 
     }
 
-    public BtMessage(JSONObject json_item,String mac){
+    public BtMessage(JSONObject json_item) {
         try {
             this.user = json_item.getString("user");
         }catch(Exception e){
@@ -93,9 +95,28 @@ public class BtMessage {
         }catch(Exception e){
 
         }
-        this.mac_address = mac;
-        this.date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
-        this.time = new SimpleDateFormat("HH:mm").format(new Date());
+        try {
+            this.mac_address = json_item.getString("MAC");
+        } catch (Exception e) {
+
+        }
+        try {
+            this.date = json_item.getString("date");
+        } catch (Exception e) {
+
+        }
+        try {
+            this.time = json_item.getString("time");
+        } catch (Exception e) {
+
+        }
+        try {
+            this.hits = json_item.getInt("hits");
+        } catch (Exception e) {
+
+        }
+        this.rdate = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
+        this.rtime = new SimpleDateFormat("HH:mm").format(new Date());
 
     }
     // Methods to provide hastag characteristics
@@ -111,7 +132,7 @@ public class BtMessage {
     }
 
     public String toString(){
-        return "'" + mac_address + "', '" + user + "', '" + msg + "', '" + tag + "', '" + date + "', '" + time +"'";
+        return "'" + mac_address + "', '" + user + "', '" + msg + "', '" + tag + "'";
     }
 
     public String toJson() {
@@ -119,8 +140,12 @@ public class BtMessage {
         try {
             object.put("user", this.user);
             object.put("msg", this.msg);
+            object.put("MAC", this.mac_address);
             object.put("isGeneral", this.isGeneral);
             object.put("tag", this.tag);
+            object.put("hits", this.tag);
+            object.put("date", this.date);
+            object.put("time", this.time);
         } catch (JSONException e) {
             e.printStackTrace();
         }

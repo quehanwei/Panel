@@ -54,36 +54,19 @@ public class DBHelper extends SQLiteOpenHelper {
 
     }
 
-    public void onCreate(SQLiteDatabase db) {
-        //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
-        db.execSQL("CREATE TABLE Tags(tagname TEXT)");
-        db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,date TEXT,time TEXT)");
-    }
-
-    public void onUpgrade(SQLiteDatabase db, int versionAnterior, int versionNueva) {
-
-        // We remove the older version
-        db.execSQL("DROP TABLE IF EXISTS Messages");
-
-        //And create a new one
-        //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
-        db.execSQL("CREATE TABLE Tags(tagname TEXT)");
-        db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,date TEXT,time TEXT)");
-    }
-
     public static void newTag(SQLiteDatabase db, String tagname) {
-        Log.i(TAG,"newTag : "+tagname);
+        Log.i(TAG, "newTag : " + tagname);
         db.execSQL("CREATE TABLE " + tagname + "(id TEXT, username TEXT,message TEXT,date TEXT,time TEXT)");
-        db.execSQL("INSERT INTO Tags(tagname) VALUES ('"+tagname+"')");
+        db.execSQL("INSERT INTO Tags(tagname) VALUES ('" + tagname + "')");
     }
 
-    public static Boolean TagExists(SQLiteDatabase db,String tagname){
-        Cursor c = db.rawQuery("SELECT tagname FROM Tags WHERE tagname='"+tagname+"'",null);
-        if (c.getCount() > 0){
-            Log.i(TAG,"TAG "+tagname+ " EXISTS" );
+    public static Boolean TagExists(SQLiteDatabase db, String tagname) {
+        Cursor c = db.rawQuery("SELECT tagname FROM Tags WHERE tagname='" + tagname + "'", null);
+        if (c.getCount() > 0) {
+            Log.i(TAG, "TAG " + tagname + " EXISTS");
             return true;
         }
-        else return false;
+        return false;
     }
 
     /*
@@ -91,17 +74,17 @@ public class DBHelper extends SQLiteOpenHelper {
     */
     public static void insertMessage(SQLiteDatabase db, BtMessage item) {
         String s;
-        if(item.isGeneral){
+        if (item.isGeneral) {
             s = "INSERT INTO Messages(id, username ,message ,date ,time ) ";
             s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
-            Log.i(TAG,"insertMessage "+s);
-        }
-        else{
+            Log.i(TAG, "insertMessage " + s);
+        } else {
+            if (!TagExists(db, item.tag)) newTag(db, item.tag);
             s = "INSERT INTO " + item.tag + "(id, username ,message ,date ,time ) ";
             s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
-            Log.i(TAG,"insertTagMessage "+ s);
-        }
+            Log.i(TAG, "insertTagMessage " + s);
 
+        }
         db.execSQL(s);
     }
 
@@ -144,6 +127,7 @@ public class DBHelper extends SQLiteOpenHelper {
         return true;
 
     }
+
     public static ArrayList RecoverMessages(SQLiteDatabase db) {
         ArrayList<BtMessage> messages;
         messages = new ArrayList<BtMessage>();
@@ -208,6 +192,23 @@ public class DBHelper extends SQLiteOpenHelper {
             Log.i(TAG,s);
             db.execSQL(s);
         }
+    }
+
+    public void onCreate(SQLiteDatabase db) {
+        //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
+        db.execSQL("CREATE TABLE Tags(tagname TEXT)");
+        db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,date TEXT,time TEXT)");
+    }
+
+    public void onUpgrade(SQLiteDatabase db, int versionAnterior, int versionNueva) {
+
+        // We remove the older version
+        db.execSQL("DROP TABLE IF EXISTS Messages");
+
+        //And create a new one
+        //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
+        db.execSQL("CREATE TABLE Tags(tagname TEXT)");
+        db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,date TEXT,time TEXT)");
     }
 
 }

@@ -70,10 +70,12 @@ public class BluetoothChatService extends Service{
     private final Handler mHandler;
     ArrayList<String> devices;  //List of detected devices
     ArrayList<BtMessage> messages;
+    ArrayList<String> receivedMessages;
     Context context;
     private ServerThread mServerThread;
     private ClientThread mClientThread;
     private PostManThread mPostManThread;
+
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -87,8 +89,10 @@ public class BluetoothChatService extends Service{
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 Log.i(TAG, "Discovery Finished");
                 mAdapter.cancelDiscovery();
-                mPostManThread = new PostManThread(messages, devices);
+
+                mPostManThread = new PostManThread(devices);
                 mPostManThread.start();
+
             }
             /*
             if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
@@ -102,7 +106,6 @@ public class BluetoothChatService extends Service{
     private ConnectionManager mConnectionManagerThread;
     private int mState;
     private WifiManager wifi;
-
     /**
      * Constructor. Prepares a new BluetoothChat session.
      *
@@ -120,17 +123,7 @@ public class BluetoothChatService extends Service{
         messages = new ArrayList<BtMessage>();
 
         this.context = context;
-        context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-        //if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
-
-
-        //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0));
-        if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
-
-            Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
-            context.startActivity(discoverableIntent);
-        }
+        enableBt();
 
         //wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
@@ -142,11 +135,11 @@ public class BluetoothChatService extends Service{
         myTimer.schedule(new TimerTask() {
             public void run() {
                 if (messages != null && getState() == STATE_LISTEN) {
-
+                    startDiscovery();
                 }
             }
 
-        }, 0, 20000);
+        }, 30000, 60000);
     }
 
     @Override
@@ -154,6 +147,22 @@ public class BluetoothChatService extends Service{
         return null;
     }
 
+
+    public void enableBt() {
+
+        if (!mAdapter.isEnabled())
+            context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+        //if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
+
+
+        //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0));
+        if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+
+            Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
+            context.startActivity(discoverableIntent);
+        }
+    }
     /**
      * Check if the new address is already stored on the arraylist
      */
@@ -166,23 +175,41 @@ public class BluetoothChatService extends Service{
     }
 
     void Msgnotify(BtMessage item){
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(context).setContentTitle(item.user).setContentText(item.msg);
-        // Creates an explicit intent for an Activity in your app
-        Intent resultIntent = new Intent(context, MainActivity.class);
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
-        stackBuilder.addParentStack(MainActivity.class);
+        NotificationManager mNotificationManager;
+        Log.i("Start", "notification");
+      /* Invoking the default notification service */
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this);
+
+        mBuilder.setContentTitle(item.user);
+        mBuilder.setContentText(item.msg);
+        mBuilder.setTicker("New Message Alert!");
+
+      /* Creates an explicit intent for an Activity in your app */
+        Intent resultIntent = new Intent(this, NotificationView.class);
+
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this).addParentStack(NotificationView.class);
+
+      /* Adds the Intent that starts the Activity to the top of the stack */
         stackBuilder.addNextIntent(resultIntent);
         PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
         mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotificationManager.notify(2, mBuilder.build());
+
+        mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+      /* notificationID allows you to update the notification later on. */
+        mNotificationManager.notify(1, mBuilder.build());
     }
 
-    public void addMessage(BtMessage Item){
+    public boolean isEmpty() {
+        if (messages != null) if (!messages.isEmpty()) return false;
+        if (receivedMessages != null) if (!receivedMessages.isEmpty()) return false;
+        return true;
+    }
 
+    public void startDiscovery() {
         if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
         if(devices != null) devices.clear();
-        messages.add(Item);
+        if (isEmpty()) return;
         mAdapter.startDiscovery();
         Log.i(TAG, "Starting Discovery");
         final Timer myTimer = new Timer();
@@ -191,12 +218,19 @@ public class BluetoothChatService extends Service{
                 if (mAdapter.isDiscovering()) {
                     Log.i(TAG, "Discovering Time Exceeded");
                     mAdapter.cancelDiscovery();
+                    mAdapter.enable();
+                    startDiscovery();
                     myTimer.cancel();
                 }
             }
 
         }, 20000);
 
+    }
+
+
+    public void addMessage(BtMessage Item) {
+        messages.add(Item);
     }
 
     /*
@@ -276,7 +310,7 @@ public class BluetoothChatService extends Service{
         mState = state;
 
         // Give the new state to the Handler so the UI Activity can update
-        mHandler.obtainMessage(Constants.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+        mHandler.obtainMessage(Constants.MESSAGE_STATE_CHANGE).sendToTarget();
     }
 
     /**
@@ -287,6 +321,7 @@ public class BluetoothChatService extends Service{
         Log.d(TAG, "start");
 
         if (!mAdapter.isEnabled())  mAdapter.enable();
+        enableBt();
 
         // Cancel any thread attempting to make a connection
         if (mClientThread != null) {
@@ -337,11 +372,21 @@ public class BluetoothChatService extends Service{
         setState(STATE_CONNECTING);
     }
 
-    public void addToDb(BtMessage item) {
+    public boolean addToDb(BtMessage item) {
+        Boolean Success = false;
         DBHelper msg_database = new DBHelper(context, "messages.db", null, 1);
         db = msg_database.getWritableDatabase();
-        if(DBHelper.isNew(db,item)) DBHelper.insertMessage(db, item);
+        if (!item.isGeneral) {
+            if (DBHelper.TagExists(db, item.tag)) if (DBHelper.isNew(db, item)) {
+                DBHelper.insertMessage(db, item);
+            }
+            Success = true;
+        } else {
+            if (DBHelper.isNew(db, item)) DBHelper.insertMessage(db, item);
+            Success = true;
+        }
         db.close();
+        return Success;
     }
     /**
      * Start the ConnectionManager to begin managing a Bluetooth connection
@@ -536,37 +581,82 @@ public class BluetoothChatService extends Service{
 
     private class PostManThread extends Thread {
 
-        ArrayList<BtMessage> messages;
         ArrayList<String> devices;
 
-        public PostManThread(ArrayList<BtMessage> messages, ArrayList<String> devices) {
-            this.messages = messages;
+        public PostManThread(ArrayList<String> devices) {
             this.devices = devices;
         }
 
         public void run() {
             Log.i(TAG, "BEGIN mPostManThread");
-            Log.i(TAG, devices.toString());
+            if (messages != null) sendMessages();
+            if (receivedMessages != null) sendHashes();
+            Log.i(TAG, "END mPostManThread");
+            BluetoothChatService.this.start();
+            return;
+        }
+
+        public void sendMessages() {
+            Log.i(TAG, "STEP 1: MESSAGES");
             for (String device : devices) {
-                Log.i(TAG, device.toString());
                 for (BtMessage message : messages) {
+                    Log.i(TAG, "Waiting until STATE_NONE or STATE_LISTEN");
+                    while (BluetoothChatService.this.getState() != STATE_LISTEN) {
+                    }
                     connect(mAdapter.getRemoteDevice(device));
                     Log.i(TAG, "Waiting until STATE_CONNECTED");
                     while (BluetoothChatService.this.getState() != STATE_CONNECTED) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (Exception e) {
+
+                    }
                     }
                     Log.i(TAG, "Sending " + message.toJson());
                     write(message.toJson().getBytes());
                     BluetoothChatService.this.stop();
-                    while (BluetoothChatService.this.getState() != STATE_NONE || BluetoothChatService.this.getState() != STATE_LISTEN) {
-                    }
 
                 }
-
             }
-            Log.i(TAG, "END mPostManThread");
-            BluetoothChatService.this.start();
-
         }
+
+        public void sendHashes() {
+            Log.i(TAG, "STEP 2: CHECKSUM");
+            for (String device : devices) {
+                for (String hash : receivedMessages) {
+                    Log.i(TAG, "Waiting until STATE_NONE or STATE_LISTEN");
+                    while (BluetoothChatService.this.getState() != STATE_LISTEN) {
+                    }
+                    connect(mAdapter.getRemoteDevice(device));
+                    Log.i(TAG, "Waiting until STATE_CONNECTED");
+                    while (BluetoothChatService.this.getState() != STATE_CONNECTED) {
+                    }
+                    Log.i(TAG, "Sending HASH" + hash);
+                    write(hash.getBytes());
+                    BluetoothChatService.this.stop();
+                }
+            }
+        }
+
+        public void sendTags(ArrayList<String> tags) {
+            Log.i(TAG, "BEGIN Tags Sync");
+            for (String device : devices) {
+                connect(mAdapter.getRemoteDevice(device));
+                Log.i(TAG, "Waiting until STATE_CONNECTED");
+                while (BluetoothChatService.this.getState() != STATE_CONNECTED) {
+                }
+                Log.i(TAG, "Sending " + tags.toString());
+                write(tags.toString().getBytes());
+                BluetoothChatService.this.stop();
+                while (BluetoothChatService.this.getState() != STATE_NONE || BluetoothChatService.this.getState() != STATE_LISTEN) {
+                }
+            }
+            Log.i(TAG, "END  Tags Sync");
+            BluetoothChatService.this.start();
+            return;
+        }
+
+
     }
     /**
      * This thread runs while attempting to make an outgoing connection
@@ -665,27 +755,38 @@ public class BluetoothChatService extends Service{
                 try {
                     bytes = mmInStream.read(buffer);                        // Read from the InputStream
                     String readMessage = new String(buffer, 0, bytes);  // construct a string from the valid bytes in the buffer
-                    Log.i(TAG, readMessage);
-
-                    //Msgnotify(new BtMessage("", readMessage,"Outsider"));
-                    //addToDb(new BtMessage("",readMessage,"Outsider"));
-                    ////mHandler.obtainMessage(Constants.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                    Log.i(TAG, "RECEIVED: " + readMessage);
 
                     JSONObject json_object;
 
                     try {
 
                         json_object = new JSONObject(readMessage);
-                        BtMessage item = new BtMessage(json_object, "NONE");
-                        addToDb(item);
-                        Msgnotify(item);
-                        mHandler.obtainMessage(Constants.MESSAGE_READ, item.tag.length(), -1, item.tag).sendToTarget();                       // Send the obtained bytes to the UI Activity
+                        BtMessage item = new BtMessage(json_object);
+                        item.updateHits();
+                        if (addToDb(item)) {
+                            addMessage(item);
+                            Msgnotify(item);
+                            mHandler.obtainMessage(Constants.MESSAGE_READ).sendToTarget();                       // Send the obtained bytes to the UI Activity
+                            receivedMessages.add(item.tohash());
+                            Log.i(TAG, item.tohash());
+                        }
 
                     }
                     catch(Exception e){
-                        Log.e(TAG, "Impossible to parse JSON");
+                        Log.e(TAG, "Impossible to parse JSON as a message");
                     }
-
+                    try {
+                        String hash = new JSONObject(readMessage).getString("received");
+                        for (BtMessage message : messages) {
+                            if (message.tohash().equals(hash)) {
+                                Log.i(TAG, "Message received by peer: " + message.toString());
+                                messages.remove(message);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Impossible to parse JSON as a checksum");
+                    }
                     json_object = null;
 
                     // Send the obtained bytes to the UI Activity
@@ -708,7 +809,7 @@ public class BluetoothChatService extends Service{
             try {
                 mmOutStream.write(buffer);
                 // Share the sent message back to the UI Activity
-                mHandler.obtainMessage(Constants.MESSAGE_WRITE, -1, -1, buffer).sendToTarget();
+                mHandler.obtainMessage(Constants.MESSAGE_WRITE).sendToTarget();
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }

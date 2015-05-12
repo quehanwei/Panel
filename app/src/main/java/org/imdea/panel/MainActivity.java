@@ -27,7 +27,6 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Toast;
 
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
@@ -44,32 +43,14 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case Constants.MESSAGE_STATE_CHANGE:
-                    /*switch (msg.arg1) {
-                        case BluetoothChatService.STATE_CONNECTED:
-                            break;
-                        case BluetoothChatService.STATE_CONNECTING:
-                            break;
-                        case BluetoothChatService.STATE_LISTEN:
-                        case BluetoothChatService.STATE_NONE:
-                            break;
-                    }*/
                     break;
                 case Constants.MESSAGE_WRITE:   // I'm sending the message
                     break;
                 case Constants.MESSAGE_READ:    // I'm receiving the Message
-                    //byte[] readBuf = (byte[]) msg.obj;
-                    // construct a string from the valid bytes in the buffer
-                    //String readMessage = new String(readBuf, 0, msg.arg1);
-                    //Log.i("RXMESG",readMessage);
-                    //Toast.makeText(getApplicationContext(), readMessage, Toast.LENGTH_SHORT).show();
                     GeneralFragment.refresh();
-                    //mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+                    TagsFragment.refresh();
                     break;
-
                 case Constants.MESSAGE_TOAST:
-                    if (null != this) {
-                        Toast.makeText(getApplicationContext(), msg.getData().getString(Constants.TOAST), Toast.LENGTH_LONG).show();
-                    }
                     break;
             }
         }

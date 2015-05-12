@@ -91,12 +91,14 @@ public class InputFragment extends DialogFragment {
                             DBHelper.insertMessage(MainActivity.db, item);
                             showMessages.refresh();
                             MainActivity.mChatService.addMessage(item);
+                            MainActivity.mChatService.startDiscovery();
 
                         } else {                      // If the message is general
                             BtMessage item = new BtMessage(inputText, SP.getString("username_field", "anonymous"));
                             DBHelper.insertMessage(MainActivity.db, item);
                             GeneralFragment.refresh();
                             MainActivity.mChatService.addMessage(item);
+                            MainActivity.mChatService.startDiscovery();
 
                         }
 
