@@ -45,6 +45,7 @@ public class BtService extends Service {
                         case BtModule.STATE_CONNECTING:
                             break;
                         case BtModule.STATE_LISTEN:
+                            break;
                         case BtModule.STATE_NONE:
                             break;
                     }
@@ -66,6 +67,8 @@ public class BtService extends Service {
                 case Global.MESSAGE_TOAST:
 
                     break;
+                case Global.CONECTION_FAILED:
+                    break;
             }
         }
     };
@@ -78,17 +81,20 @@ public class BtService extends Service {
             String action = intent.getAction();
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {              // When discovery finds a device
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);                   // Get the BluetoothDevice object from the Intent
-                if (isNew(device.getAddress(), devices)) {
-                    Log.i(TAG, "Found " + device.getAddress());
+                if (isNew(device.getAddress(), devices))
                     devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
-                }
             }
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                Log.i(TAG, "Discovery Finished");
-                if (ConnectionThread == null || !ConnectionThread.isAlive()) {
-                    Log.i(TAG, "Starting Sync with neighbours");
-                    ConnectionThread = new ConnectionManager();
-                    ConnectionThread.start();
+                Log.i(TAG, "Discovery Finished: " + devices.toString());
+
+                if (devices.isEmpty()) {
+                    Log.i(TAG, "Discovery Finished: No Devices");
+                } else {
+                    if (ConnectionThread == null || !ConnectionThread.isAlive()) {
+                        Log.i(TAG, "Starting Synchronization");
+                        ConnectionThread = new ConnectionManager();
+                        ConnectionThread.start();
+                    }
                 }
                 mAdapter.cancelDiscovery();
 
@@ -112,13 +118,8 @@ public class BtService extends Service {
         myTimer.schedule(new TimerTask() {
             public void run() {
 
-                Log.i(TAG, String.valueOf(mChatService.getState()));
-                Log.i(TAG, String.valueOf(busy));
-
                 //Clean outdated messages
-                if (Global.messages != null) for (BtMessage obj : Global.messages)
-                    if (checkTime(obj.time) > 10) Global.messages.remove(obj);
-
+                CleanOutdated();
                 // If the queue is not empty AND there is some message pending AND the system is not busy
                 if (Global.messages != null & Global.messages.size() > 0 & !busy) {
                     startDiscovery();
@@ -129,6 +130,7 @@ public class BtService extends Service {
                     else {                   // If it is the next iteration, restart the service
                         Log.i(TAG, "Something went wrong, restarting Bt");
                         force_keepgoing = false;
+                        ConnectionThread = null;
                         mChatService.start();
                     }
                 }
@@ -140,6 +142,10 @@ public class BtService extends Service {
         return Service.START_NOT_STICKY;
     }
 
+    public synchronized void CleanOutdated() {
+        if (Global.messages != null) for (BtMessage obj : Global.messages)
+            if (checkTime(obj.time) > 10) Global.messages.remove(obj);
+    }
     public void startDiscovery() {
         if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
         if (devices != null) devices.clear();
@@ -328,17 +334,22 @@ public class BtService extends Service {
                 mChatService.connect(device);
                 //2-SEND MESSAGES
                 Log.i(TAG, "Waiting for Connection " + mChatService.getState());
-
-                while (mChatService.getState() != BtModule.STATE_CONNECTED) {
-
+                //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
+                long startTime = System.currentTimeMillis();
+                while (mChatService.getState() < BtModule.STATE_CONNECTED) {
+                    //Log.i("STATUS",String.valueOf(System.currentTimeMillis() - startTime));
+                    if (System.currentTimeMillis() - startTime > 5000) break;
                 }
 
-                Log.i(TAG, prepareMessage());
-                sendMessage(prepareMessage());
-                //3-RECEIVE HASHES
-                //4-BYE
-                Log.i(TAG, "Waiting for Server restart.");
-                while (mChatService.getState() != BtModule.STATE_LISTEN) {
+                if (mChatService.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
+                    Log.i(TAG, prepareMessage());
+                    sendMessage(prepareMessage());
+                    //3-RECEIVE HASHES
+                    //4-BYE
+                    Log.i(TAG, "Waiting for Server restart.");
+                    mChatService.start();
+                    while (mChatService.getState() != BtModule.STATE_LISTEN) {
+                    }
                 }
             }
             cancel();

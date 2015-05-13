@@ -231,12 +231,15 @@ public class BtModule {
      */
     private void connectionFailed() {
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
-        Bundle bundle = new Bundle();
-        bundle.putString(Global.TOAST, "Unable to connect device");
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
+        //Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
+        //Bundle bundle = new Bundle();
+        //bundle.putString(Global.TOAST, "Unable to connect device");
+        //msg.setData(bundle);
+        //mHandler.sendMessage(msg);
 
+        Log.i(TAG, "Unable to connect device");
+        mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED));
+        setState(Global.CONECTION_FAILED);
         // Start the service over to restart listening mode
         BtModule.this.start();
     }
@@ -249,6 +252,8 @@ public class BtModule {
         Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
         bundle.putString(Global.TOAST, "Device connection was lost");
+        Log.i(TAG, "Device connection was lost");
+
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
@@ -426,19 +431,19 @@ public class BtModule {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[3064];
             int bytes;
 
             // Keep listening to the InputStream while connected
             while (true) {
-                try {
-                    // Read from the InputStream
-                    bytes = mmInStream.read(buffer);
 
-                    // Send the obtained bytes to the UI Activity
-                    mHandler.obtainMessage(Global.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                try {
+                    if (mmInStream.available() > 0) {
+                        bytes = mmInStream.read(buffer);                            // Read from the InputStream
+                        mHandler.obtainMessage(Global.MESSAGE_READ, bytes, -1, buffer).sendToTarget();             // Send the obtained bytes to the UI Activity
+                    }
                 } catch (IOException e) {
-                    Log.e(TAG, "disconnected", e);
+                    Log.e(TAG, "Disconnected", e);
                     connectionLost();
                     // Start the service over to restart listening mode
                     BtModule.this.start();

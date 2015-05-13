@@ -11,7 +11,9 @@ public interface Global {
     public static final int MESSAGE_WRITE = 6;
     public static final int MESSAGE_DEVICE_NAME = 7;
     public static final int MESSAGE_TOAST = 8;
+    public static final int CONECTION_FAILED = 9;
 
+    public static boolean connectionRefused = false;
 
     public static ArrayList<BtMessage> messages = new ArrayList<BtMessage>();
 
