@@ -135,7 +135,7 @@ public class BtMessage {
         return "'" + mac_address + "', '" + user + "', '" + msg + "', '" + tag + "'";
     }
 
-    public String toJson() {
+    public JSONObject toJson() {
         JSONObject object = new JSONObject();
         try {
             object.put("user", this.user);
@@ -149,7 +149,7 @@ public class BtMessage {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        return object.toString();
+        return object;
     }
 
     public String tohash() {

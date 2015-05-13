@@ -17,8 +17,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Holo.Light" >
-        <service
-            android:name=".BluetoothChatService" />
+
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name" >
@@ -32,16 +31,19 @@
             android:name=".SettingsActivity"
             android:label="@string/title_activity_settings" >
         </activity>
-
         <activity
             android:name=".showMessages"
             android:label="@string/title_activity_show_messages" >
         </activity>
-
         <activity
             android:name=".AboutActivity"
             android:label="@string/title_activity_about" >
         </activity>
+
+        <service
+            android:name=".BtService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>
