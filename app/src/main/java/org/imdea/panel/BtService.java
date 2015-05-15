@@ -1,5 +1,7 @@
 package org.imdea.panel;
 
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -8,9 +10,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.sqlite.SQLiteDatabase;
+import android.media.RingtoneManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -19,15 +23,23 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/* TODO
+        -> Send message confirmation
+        -> Assure that the same message is not send to the same device twice
+        -> Fix the Outdated error
+
+ */
 public class BtService extends Service {
 
     public static SQLiteDatabase db;
-    public static int AbortedConnections = 0;
-    ArrayList<String> devices = new ArrayList<String>();
+
+    ArrayList<String> devices = new ArrayList<>();
     ArrayList<String> hashmap = new ArrayList<>();
+
     BluetoothAdapter mAdapter;
     Context context;
     private String TAG = "BtService";
@@ -51,9 +63,9 @@ public class BtService extends Service {
                     }
                     break;
                 case Global.MESSAGE_WRITE:
-                    byte[] writeBuf = (byte[]) msg.obj;
+                    //byte[] writeBuf = (byte[]) msg.obj;
                     // construct a string from the buffer
-                    String writeMessage = new String(writeBuf);
+                    //String writeMessage = new String(writeBuf);
                     break;
                 case Global.MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
@@ -85,16 +97,23 @@ public class BtService extends Service {
                     devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
             }
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                Log.i(TAG, "Discovery Finished: " + devices.toString());
-
                 if (devices.isEmpty()) {
                     Log.i(TAG, "Discovery Finished: No Devices");
+                    mAdapter.cancelDiscovery();
+                    mAdapter.disable();
+                    mAdapter.enable();
                 } else {
-                    if (ConnectionThread == null || !ConnectionThread.isAlive()) {
+                    Log.i(TAG, "Discovery Finished: " + devices.toString());
+                    /*if (ConnectionThread == null || !ConnectionThread.isAlive()) {
                         Log.i(TAG, "Starting Synchronization");
                         ConnectionThread = new ConnectionManager();
                         ConnectionThread.start();
-                    }
+                    }*/
+                    if (ConnectionThread != null) ConnectionThread.cancel();
+                    ConnectionThread = null;
+                    Log.i(TAG, "Starting Synchronization");
+                    ConnectionThread = new ConnectionManager();
+                    ConnectionThread.start();
                 }
                 mAdapter.cancelDiscovery();
 
@@ -108,28 +127,39 @@ public class BtService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mChatService = new BtModule(context, mHandler);
+        mChatService.start();
 
         registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
 
-        mChatService.start();
+        final Intent notificationIntent = new Intent(this, MainActivity.class);
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.ic_stat_name)
+                .setContentTitle("Panel running")
+                .setContentIntent(PendingIntent.getActivity(this, 0, notificationIntent, 0));
+        startForeground(2357, mBuilder.build());
 
         final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
 
                 //Clean outdated messages
-                CleanOutdated();
+                //CleanOutdated();
                 // If the queue is not empty AND there is some message pending AND the system is not busy
-                if (Global.messages != null & Global.messages.size() > 0 & !busy) {
-                    startDiscovery();
+
+                Log.i(TAG, Global.messages + " " + Global.messages.size() + " " + String.valueOf(busy));
+
+                if (Global.messages != null & Global.messages.size() > 0) {
+                    if (!busy) startDiscovery();  //If it is not busy, start
+                    else force_keepgoing = true;
 
                 } else {
-                    if (!force_keepgoing)
-                        force_keepgoing = true; // Put the flag to force it at the next iteration
-                    else {                   // If it is the next iteration, restart the service
-                        Log.i(TAG, "Something went wrong, restarting Bt");
+                    if (force_keepgoing) {                  // If it is the next iteration, restart the service
+                        Log.e(TAG, "Something went wrong, restarting Bt");
                         force_keepgoing = false;
+                        mChatService.stop();
+                        mAdapter.disable();
+                        mAdapter.enable();
                         ConnectionThread = null;
                         mChatService.start();
                     }
@@ -143,9 +173,41 @@ public class BtService extends Service {
     }
 
     public synchronized void CleanOutdated() {
-        if (Global.messages != null) for (BtMessage obj : Global.messages)
-            if (checkTime(obj.time) > 10) Global.messages.remove(obj);
+        if (Global.messages != null) for (BtMessage obj : Global.messages) {
+            Log.i(TAG, String.valueOf(checkTime(obj.time)));
+            if (checkTime(obj.time) > 10) removeFromQueue(obj);
+        }
     }
+
+    public long checkTime(String time) {
+        try {
+            Date then = new SimpleDateFormat("HH:mm").parse(time);
+            Date now = new Date();
+            Long diff = now.getTime() - then.getTime();
+            return (int) ((diff / (1000 * 60)) % 60);
+        } catch (Exception e) {
+
+        }
+        return 0;
+    }
+
+    public synchronized void removeFromQueue(BtMessage itm) {
+        Global.messages.remove(itm);
+    }
+
+    public void showNotification(String title, String msg) {
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.ic_stat_name)
+                .setContentTitle("Message: " + title)
+                .setContentText(msg)
+                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+        Intent resultIntent = new Intent(this, MainActivity.class);
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(resultPendingIntent);
+        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
+    }
+
     public void startDiscovery() {
         if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
         if (devices != null) devices.clear();
@@ -175,17 +237,7 @@ public class BtService extends Service {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-    public long checkTime(String time) {
-        try {
-            Date then = new SimpleDateFormat("HH:mm").parse(time);
-            Date now = new Date();
-            Long diff = now.getTime() - then.getTime();
-            return (int) ((diff / (1000 * 60)) % 60);
-        } catch (Exception e) {
 
-        }
-        return 0;
-    }
 
     /**
      * Check if the new String is already stored on the arraylist
@@ -199,23 +251,11 @@ public class BtService extends Service {
         return true;
     }
 
-    public boolean isEmpty() {
-        if (Global.messages != null) if (!Global.messages.isEmpty()) return false;
+    public boolean msg_isNew(ArrayList<BtMessage> list, BtMessage item) {
+        for (BtMessage listitem : list) {
+            if (item.toString().equals(listitem.toString())) return false;
+        }
         return true;
-    }
-
-    /**
-     * Establish connection with other divice
-     *
-     * @param device_addr An String with the Bluetooth Address.
-     */
-
-    private void connectDevice(String device_addr) {
-        // Get the device MAC address
-        // Get the BluetoothDevice object
-        BluetoothDevice device = mAdapter.getRemoteDevice(device_addr);
-        // Attempt to connect to the device
-        mChatService.connect(device);
     }
 
     private JSONArray prepareHashes() {
@@ -226,6 +266,16 @@ public class BtService extends Service {
         }
         return my_array;
 
+    }
+
+    private String getHash(BtMessage item) {
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("HASH", item.tohash());
+        } catch (Exception e) {
+
+        }
+        return obj.toString();
     }
 
     private String prepareMessage() {
@@ -269,8 +319,8 @@ public class BtService extends Service {
         if (!item.isGeneral) {
             if (DBHelper.TagExists(db, item.tag)) if (DBHelper.isNew(db, item)) {
                 DBHelper.insertMessage(db, item);
+                Success = true;
             }
-            Success = true;
         } else {
             if (DBHelper.isNew(db, item)) DBHelper.insertMessage(db, item);
             Success = true;
@@ -284,22 +334,25 @@ public class BtService extends Service {
     }
 
     public void parseJson(String message) {
-        Log.i("RECEIVED: ", message);
+        //Log.w("RECEIVED: ", message);
+
         JSONArray json_list;
         JSONObject json_wrapper;
         try {
             json_wrapper = new JSONObject(message);
             json_list = json_wrapper.getJSONArray("MESSAGES");              // Getting JSON Array node
-            Log.i("LENGTH", String.valueOf(json_list.length()));
             for (int x = 0; x < json_list.length(); x++) {
                 JSONObject json_object = json_list.getJSONObject(x);
                 BtMessage item = new BtMessage(json_object);
                 item.updateHits();
-                Log.i(TAG, item.toString() + "-->" + item.tohash());
-                if (addToDb(item)) {
-                    addMessage(item);
+                Log.w(TAG, "Received: " + item.toString());
+                if (addToDb(item)) {    // Check if the message is original and if it is, add it to the database
+                    if (msg_isNew(Global.messages, item))
+                        addMessage(item);   // Add it to the sendlist
+                    showNotification(item.user, item.msg);                   // Notificate
+
                     //mHandler.obtainMessage(Global.MESSAGE_READ).sendToTarget();                       // Send the obtained bytes to the UI Activity
-                    Log.i(TAG, item.tohash());
+                    //Log.i(TAG, item.tohash());
                     //if(isNew(item.tohash(),hashmap)) hashmap.add(item.tohash());
                 }
             }
@@ -314,6 +367,7 @@ public class BtService extends Service {
         } catch (Exception e) {
             Log.e(TAG, "Impossible to parse JSON", e);
         }
+
     }
 
     public void addMessage(BtMessage Item) {
@@ -327,6 +381,7 @@ public class BtService extends Service {
         }
 
         public void run() {
+
             busy = true;
             for (String device_addr : devices) {
                 //1- CONNECT
@@ -334,11 +389,14 @@ public class BtService extends Service {
                 mChatService.connect(device);
                 //2-SEND MESSAGES
                 Log.i(TAG, "Waiting for Connection " + mChatService.getState());
-                //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
                 long startTime = System.currentTimeMillis();
-                while (mChatService.getState() < BtModule.STATE_CONNECTED) {
+                while (mChatService.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
                     //Log.i("STATUS",String.valueOf(System.currentTimeMillis() - startTime));
-                    if (System.currentTimeMillis() - startTime > 5000) break;
+                    if (System.currentTimeMillis() - startTime > 5000) {
+                        Log.e(TAG, "Time for stablishing connection exceeded");
+                        mChatService.setState(Global.CONECTION_FAILED);
+                        break;
+                    }
                 }
 
                 if (mChatService.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
@@ -352,11 +410,13 @@ public class BtService extends Service {
                     }
                 }
             }
-            cancel();
+            busy = false;
         }
 
         public void cancel() {
             busy = false;
+            mChatService.stop();
+            mChatService = null;
             ConnectionThread = null;
         }
 

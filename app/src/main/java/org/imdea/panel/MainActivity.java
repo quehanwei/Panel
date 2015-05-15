@@ -104,7 +104,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
-        enableBt();
+        //enableBt();
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
         DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
         db = msg_database.getWritableDatabase();
@@ -126,13 +126,13 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         while (!mAdapter.isEnabled()) {
         }
 
-        //context.startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0));
         if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
-
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
             startActivity(discoverableIntent);
         }
+
+
     }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -189,7 +189,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     @Override
     public void onResume() {
         super.onResume();
-
+        enableBt();
         // Performing this check in onResume() covers the case in which BT was
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
@@ -221,6 +221,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     protected void onDestroy(Bundle savedInstance) {
         db.close();
+        BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+        mAdapter.disable();
         //FtpUpload uploadData = new FtpUpload();
         //mChatService.stop();
 

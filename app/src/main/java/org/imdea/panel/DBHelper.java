@@ -20,6 +20,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -74,18 +75,37 @@ public class DBHelper extends SQLiteOpenHelper {
     */
     public static void insertMessage(SQLiteDatabase db, BtMessage item) {
         String s;
+        SQLiteStatement insertStatement;
         if (item.isGeneral) {
             s = "INSERT INTO Messages(id, username ,message ,date ,time ) ";
-            s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
+            //s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
+            s = s + "VALUES (?,?,?,?,?) ";
+            insertStatement = db.compileStatement(s);
+            insertStatement.bindString(1, item.mac_address);
+            insertStatement.bindString(2, item.user);
+            insertStatement.bindString(3, item.msg);
+            insertStatement.bindString(4, item.date);
+            insertStatement.bindString(5, item.time);
             Log.i(TAG, "insertMessage " + s);
         } else {
             if (!TagExists(db, item.tag)) newTag(db, item.tag);
+            //s = "INSERT INTO " + item.tag + "(id, username ,message ,date ,time ) ";
+            //s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
+            //Log.i(TAG, "insertTagMessage " + s);
             s = "INSERT INTO " + item.tag + "(id, username ,message ,date ,time ) ";
-            s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
-            Log.i(TAG, "insertTagMessage " + s);
+            //s = s + "VALUES ('" + item.mac_address + "', '" + item.user + "', '" + item.msg + "', '" + item.date + "', '" + item.time + "')";
+            s = s + "VALUES (?,?,?,?,?) ";
+            insertStatement = db.compileStatement(s);
+            insertStatement.bindString(1, item.mac_address);
+            insertStatement.bindString(2, item.user);
+            insertStatement.bindString(3, item.msg);
+            insertStatement.bindString(4, item.date);
+            insertStatement.bindString(5, item.time);
+            Log.i(TAG, "insertMessage " + insertStatement.toString());
 
         }
-        db.execSQL(s);
+        insertStatement.executeInsert();
+        //db.execSQL(s);
     }
 
     /*
@@ -97,6 +117,7 @@ public class DBHelper extends SQLiteOpenHelper {
         //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
 
         Cursor c = db.rawQuery("SELECT id,username,message,date,time FROM " + Tag, null);
+
         if (c.moveToFirst()) {
             do {
 
@@ -136,6 +157,7 @@ public class DBHelper extends SQLiteOpenHelper {
         Cursor c = db.rawQuery("SELECT id,message,username,time,date FROM Messages", null);
         if (c.moveToFirst()) {
             do {
+
                 BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4));
                 messages.add(item);
                 Log.i(TAG,"RecoverMessages: " + item.toString());

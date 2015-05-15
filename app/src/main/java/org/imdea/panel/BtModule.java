@@ -47,7 +47,7 @@ public class BtModule {
     private static final String TAG = "BluetoothChatService";
     // Name for the SDP record when creating server socket
     private static final String NAME_INSECURE = "BluetoothChat";
-    private static final UUID MY_UUID_INSECURE = UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
+    private static final UUID MY_UUID_INSECURE = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
     // Member fields
     private final BluetoothAdapter mAdapter;
     private final Handler mHandler;
@@ -80,7 +80,7 @@ public class BtModule {
      *
      * @param state An integer defining the current connection state
      */
-    private synchronized void setState(int state) {
+    public synchronized void setState(int state) {
         Log.d(TAG, "setState() " + mState + " -> " + state);
         mState = state;
 
@@ -121,7 +121,7 @@ public class BtModule {
      * @param device The BluetoothDevice to connect
      */
     public synchronized void connect(BluetoothDevice device) {
-        Log.d(TAG, "connect to: " + device);
+        Log.w(TAG, "Connecting to: " + device);
 
         // Cancel any thread attempting to make a connection
         if (mState == STATE_CONNECTING) {
@@ -151,7 +151,7 @@ public class BtModule {
      * @param device The BluetoothDevice that has been connected
      */
     public synchronized void connected(BluetoothSocket socket, BluetoothDevice device) {
-        Log.d(TAG, "Connected");
+        Log.d(TAG, "Socket Opened");
 
         // Cancel the thread that completed the connection
         if (mConnectThread != null) {
@@ -181,7 +181,7 @@ public class BtModule {
         bundle.putString(Global.DEVICE_NAME, device.getName());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
-        Log.i(TAG, "Connected :" + device.getName());
+        Log.w(TAG, "Connected to: " + device.getName());
         setState(STATE_CONNECTED);
     }
 
@@ -189,7 +189,7 @@ public class BtModule {
      * Stop all threads
      */
     public synchronized void stop() {
-        Log.d(TAG, "stop");
+        Log.d(TAG, "Stop");
 
         if (mConnectThread != null) {
             mConnectThread.cancel();
@@ -237,7 +237,7 @@ public class BtModule {
         //msg.setData(bundle);
         //mHandler.sendMessage(msg);
 
-        Log.i(TAG, "Unable to connect device");
+        Log.e(TAG, "Unable to connect device (ConnectionThread)");
         mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED));
         setState(Global.CONECTION_FAILED);
         // Start the service over to restart listening mode
@@ -252,7 +252,7 @@ public class BtModule {
         Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
         bundle.putString(Global.TOAST, "Device connection was lost");
-        Log.i(TAG, "Device connection was lost");
+        Log.e(TAG, "Device connection was lost");
 
         msg.setData(bundle);
         mHandler.sendMessage(msg);
@@ -278,7 +278,7 @@ public class BtModule {
                 tmp = mAdapter.listenUsingInsecureRfcommWithServiceRecord(NAME_INSECURE, MY_UUID_INSECURE);
 
             } catch (IOException e) {
-                Log.e(TAG, "listen() failed", e);
+                Log.e(TAG, "Listen() failed", e);
             }
             mmServerSocket = tmp;
         }
@@ -295,7 +295,7 @@ public class BtModule {
                     // This is a blocking call and will only return on a successful connection or an exception
                     socket = mmServerSocket.accept();
                 } catch (IOException e) {
-                    Log.e(TAG, "accept() failed", e);
+                    Log.e(TAG, "Accept() failed");
                     break;
                 }
 
@@ -375,10 +375,12 @@ public class BtModule {
                 mmSocket.connect();
             } catch (IOException e) {
                 // Close the socket
+                Log.e(TAG, "ERROR", e);
+                setState(Global.CONECTION_FAILED);
                 try {
                     mmSocket.close();
                 } catch (IOException e2) {
-                    Log.e(TAG, "unable to close() socket during connection failure", e2);
+                    Log.e(TAG, "Unable to close() socket during connection failure", e2);
                 }
                 connectionFailed();
                 return;
@@ -397,7 +399,7 @@ public class BtModule {
             try {
                 mmSocket.close();
             } catch (IOException e) {
-                Log.e(TAG, "close() of connect socket failed", e);
+                Log.e(TAG, "Close() of connect socket failed", e);
             }
         }
     }
@@ -439,8 +441,10 @@ public class BtModule {
 
                 try {
                     if (mmInStream.available() > 0) {
-                        bytes = mmInStream.read(buffer);                            // Read from the InputStream
-                        mHandler.obtainMessage(Global.MESSAGE_READ, bytes, -1, buffer).sendToTarget();             // Send the obtained bytes to the UI Activity
+                        // Read from the InputStream
+                        bytes = mmInStream.read(buffer);
+                        // Send the obtained bytes to the UI Activity
+                        mHandler.obtainMessage(Global.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "Disconnected", e);
@@ -466,6 +470,12 @@ public class BtModule {
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+            }
+
+            cancel();
         }
 
         public void cancel() {
