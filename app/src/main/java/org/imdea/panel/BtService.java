@@ -9,11 +9,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
-import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -42,6 +44,7 @@ public class BtService extends Service {
 
     BluetoothAdapter mAdapter;
     Context context;
+    SharedPreferences SP;
     private String TAG = "BtService";
     /**
      * The Handler that gets information back from the BtModule
@@ -125,6 +128,9 @@ public class BtService extends Service {
     }
 
     public int onStartCommand(Intent intent, int flags, int startId) {
+
+        SP = PreferenceManager.getDefaultSharedPreferences(this);
+
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mChatService = new BtModule(context, mHandler);
         mChatService.start();
@@ -199,13 +205,20 @@ public class BtService extends Service {
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_stat_name)
                 .setContentTitle("Message: " + title)
-                .setContentText(msg)
-                .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+                .setContentText(msg);
+
+
+        if (SP.getBoolean("notifications_new_message_vibrate", false))
+            mBuilder.setVibrate(new long[]{500});
+        mBuilder.setSound(Uri.parse(SP.getString("notifications_new_message_ringtone", "RingtoneManager.TYPE_NOTIFICATION")));
+
+        //mBuilder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
         Intent resultIntent = new Intent(this, MainActivity.class);
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(resultPendingIntent);
         NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
+        if (SP.getBoolean("notifications_new_message", false))
+            mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
     }
 
     public void startDiscovery() {
