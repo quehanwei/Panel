@@ -87,10 +87,14 @@ public class BtService extends Service {
             }
         }
     };
-    private BtModule mChatService = null;
+
     private boolean busy = false;
     private boolean force_keepgoing = false;
+
     private ConnectionManager ConnectionThread = null;
+    private BtModule mChatService = null;
+
+
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -100,11 +104,9 @@ public class BtService extends Service {
                     devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
             }
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                mAdapter.cancelDiscovery();
                 if (devices.isEmpty()) {
                     Log.i(TAG, "Discovery Finished: No Devices");
-                    mAdapter.cancelDiscovery();
-                    mAdapter.disable();
-                    mAdapter.enable();
                 } else {
                     Log.i(TAG, "Discovery Finished: " + devices.toString());
                     /*if (ConnectionThread == null || !ConnectionThread.isAlive()) {
@@ -114,12 +116,9 @@ public class BtService extends Service {
                     }*/
                     if (ConnectionThread != null) ConnectionThread.cancel();
                     ConnectionThread = null;
-                    Log.i(TAG, "Starting Synchronization");
                     ConnectionThread = new ConnectionManager();
                     ConnectionThread.start();
                 }
-                mAdapter.cancelDiscovery();
-
             }
         }
     };
@@ -138,10 +137,12 @@ public class BtService extends Service {
         registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
 
+        //Foreground Service notification
         final Intent notificationIntent = new Intent(this, MainActivity.class);
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_stat_name)
-                .setContentTitle("Panel running")
+                .setContentTitle("Panel is running")
+                .setContentText("Tap to open it")
                 .setContentIntent(PendingIntent.getActivity(this, 0, notificationIntent, 0));
         startForeground(2357, mBuilder.build());
 
@@ -153,7 +154,7 @@ public class BtService extends Service {
                 //CleanOutdated();
                 // If the queue is not empty AND there is some message pending AND the system is not busy
 
-                Log.i(TAG, Global.messages + " " + Global.messages.size() + " " + String.valueOf(busy));
+                Log.i(TAG, Global.messages.size() + " " + String.valueOf(busy));
 
                 if (Global.messages != null & Global.messages.size() > 0) {
                     if (!busy) startDiscovery();  //If it is not busy, start
@@ -164,9 +165,11 @@ public class BtService extends Service {
                         Log.e(TAG, "Something went wrong, restarting Bt");
                         force_keepgoing = false;
                         mChatService.stop();
+                        mChatService = null;
                         mAdapter.disable();
                         mAdapter.enable();
                         ConnectionThread = null;
+                        mChatService = new BtModule(context, mHandler);
                         mChatService.start();
                     }
                 }
@@ -177,6 +180,32 @@ public class BtService extends Service {
 
         return Service.START_NOT_STICKY;
     }
+
+    public void startDiscovery() {
+        if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
+        if (devices != null) devices.clear();
+        //if (isEmpty()) return;
+        mAdapter.startDiscovery();
+        Log.i(TAG, "Starting Discovery");
+
+        // This timer assures that the process finish (even if there are some strange error)
+        final Timer myTimer = new Timer();
+        myTimer.schedule(new TimerTask() {
+            public void run() {
+                if (mAdapter.isDiscovering()) {
+                    Log.i(TAG, "Discovering Time Exceeded");
+                    mAdapter.cancelDiscovery();
+                    mAdapter.disable();
+                    mAdapter.enable();
+                    startDiscovery();
+                    myTimer.cancel();
+                }
+            }
+
+        }, 30000);
+
+    }
+
 
     public synchronized void CleanOutdated() {
         if (Global.messages != null) for (BtMessage obj : Global.messages) {
@@ -209,7 +238,7 @@ public class BtService extends Service {
 
 
         if (SP.getBoolean("notifications_new_message_vibrate", false))
-            mBuilder.setVibrate(new long[]{500});
+            mBuilder.setVibrate(new long[]{500, 500, 500});
         mBuilder.setSound(Uri.parse(SP.getString("notifications_new_message_ringtone", "RingtoneManager.TYPE_NOTIFICATION")));
 
         //mBuilder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
@@ -217,31 +246,9 @@ public class BtService extends Service {
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(resultPendingIntent);
         NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
         if (SP.getBoolean("notifications_new_message", false))
             mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
-    }
-
-    public void startDiscovery() {
-        if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
-        if (devices != null) devices.clear();
-        //if (isEmpty()) return;
-        mAdapter.startDiscovery();
-        Log.i(TAG, "Starting Discovery");
-        final Timer myTimer = new Timer();
-        myTimer.schedule(new TimerTask() {
-            public void run() {
-                if (mAdapter.isDiscovering()) {
-                    Log.i(TAG, "Discovering Time Exceeded");
-                    mAdapter.cancelDiscovery();
-                    mAdapter.disable();
-                    mAdapter.enable();
-                    startDiscovery();
-                    myTimer.cancel();
-                }
-            }
-
-        }, 30000);
-
     }
 
     @Override
@@ -286,7 +293,6 @@ public class BtService extends Service {
         try {
             obj.put("HASH", item.tohash());
         } catch (Exception e) {
-
         }
         return obj.toString();
     }
@@ -295,6 +301,7 @@ public class BtService extends Service {
 
         JSONArray my_array = new JSONArray();
         for (BtMessage message : Global.messages) {
+            message.updateHits();
             my_array.put(message.toJson());
         }
         JSONObject item = new JSONObject();
@@ -306,7 +313,6 @@ public class BtService extends Service {
         /*try {
            item.put("HASH", prepareHashes());
         }catch(Exception e){
-
         }*/
         return item.toString();
     }
@@ -329,7 +335,7 @@ public class BtService extends Service {
         Boolean Success = false;
         DBHelper msg_database = new DBHelper(getApplicationContext(), "messages.db", null, 1);
         db = msg_database.getWritableDatabase();
-        if (!item.isGeneral) {
+        if (!item.isGeneral) {          // If It is a Tag
             if (DBHelper.TagExists(db, item.tag)) if (DBHelper.isNew(db, item)) {
                 DBHelper.insertMessage(db, item);
                 Success = true;
@@ -359,11 +365,12 @@ public class BtService extends Service {
                 BtMessage item = new BtMessage(json_object);
                 item.updateHits();
                 Log.w(TAG, "Received: " + item.toString());
-                if (addToDb(item)) {    // Check if the message is original and if it is, add it to the database
-                    if (msg_isNew(Global.messages, item))
-                        addMessage(item);   // Add it to the sendlist
-                    showNotification(item.user, item.msg);                   // Notificate
 
+                if (addToDb(item)) {    // Check if the message is original and if it is, add it to the database
+                    if (msg_isNew(Global.messages, item)) {
+                        addMessage(item);   // Add it to the sendlist
+                        showNotification(item.user, item.msg);                   // Notificate
+                    }
                     //mHandler.obtainMessage(Global.MESSAGE_READ).sendToTarget();                       // Send the obtained bytes to the UI Activity
                     //Log.i(TAG, item.tohash());
                     //if(isNew(item.tohash(),hashmap)) hashmap.add(item.tohash());
@@ -396,13 +403,25 @@ public class BtService extends Service {
         public void run() {
 
             busy = true;
+            mAdapter = BluetoothAdapter.getDefaultAdapter();
+            mChatService = new BtModule(context, mHandler);
+            mChatService.start();
+
             for (String device_addr : devices) {
                 //1- CONNECT
                 BluetoothDevice device = mAdapter.getRemoteDevice(device_addr);
-                mChatService.connect(device);
+                try {
+                    Log.i(TAG, "Waiting for Connection " + mChatService.getState());
+                    mChatService.connect(device);
+                } catch (Exception e) {
+                    Log.w(TAG, "Error while stablishing connection ", e);
+                    mChatService.setState(Global.CONECTION_FAILED);
+
+                }
+
                 //2-SEND MESSAGES
-                Log.i(TAG, "Waiting for Connection " + mChatService.getState());
                 long startTime = System.currentTimeMillis();
+
                 while (mChatService.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
                     //Log.i("STATUS",String.valueOf(System.currentTimeMillis() - startTime));
                     if (System.currentTimeMillis() - startTime > 5000) {
@@ -418,16 +437,20 @@ public class BtService extends Service {
                     //3-RECEIVE HASHES
                     //4-BYE
                     Log.i(TAG, "Waiting for Server restart.");
-                    mChatService.start();
-                    while (mChatService.getState() != BtModule.STATE_LISTEN) {
-                    }
+
+                }
+
+                mChatService.start();
+                while (mChatService.getState() != BtModule.STATE_LISTEN) {
                 }
             }
-            busy = false;
+
+            this.cancel();
         }
 
         public void cancel() {
             busy = false;
+            mAdapter.cancelDiscovery();
             mChatService.stop();
             mChatService = null;
             ConnectionThread = null;

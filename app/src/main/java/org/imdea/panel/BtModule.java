@@ -437,6 +437,7 @@ public class BtModule {
             int bytes;
 
             // Keep listening to the InputStream while connected
+            long startTime = System.currentTimeMillis();
             while (true) {
 
                 try {
@@ -451,6 +452,14 @@ public class BtModule {
                     connectionLost();
                     // Start the service over to restart listening mode
                     BtModule.this.start();
+                    break;
+                }
+
+                if (System.currentTimeMillis() - startTime > 6000) {
+                    Log.e(TAG, "Time Exceeded");
+                    connectionLost();
+                    // Start the service over to restart listening mode
+                    //BtModule.this.start();
                     break;
                 }
             }
