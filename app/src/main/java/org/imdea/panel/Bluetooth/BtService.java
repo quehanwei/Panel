@@ -1,4 +1,4 @@
-package org.imdea.panel;
+package org.imdea.panel.Bluetooth;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -19,6 +19,12 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import org.imdea.panel.BtMessage;
+import org.imdea.panel.DBHelper;
+import org.imdea.panel.Global;
+import org.imdea.panel.LogModule;
+import org.imdea.panel.MainActivity;
+import org.imdea.panel.R;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -45,6 +51,7 @@ public class BtService extends Service {
     BluetoothAdapter mAdapter;
     Context context;
     SharedPreferences SP;
+    LogModule nLog = null;
     private String TAG = "BtService";
     /**
      * The Handler that gets information back from the BtModule
@@ -87,14 +94,10 @@ public class BtService extends Service {
             }
         }
     };
-
     private boolean busy = false;
     private boolean force_keepgoing = false;
-
     private ConnectionManager ConnectionThread = null;
     private BtModule mChatService = null;
-
-
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -114,6 +117,10 @@ public class BtService extends Service {
                         ConnectionThread = new ConnectionManager();
                         ConnectionThread.start();
                     }*/
+                    nLog.writeToLog("PanelLog", "BLUETOOTH", devices.toString());
+                    nLog.getWifi();
+                    nLog.getLocation();
+
                     if (ConnectionThread != null) ConnectionThread.cancel();
                     ConnectionThread = null;
                     ConnectionThread = new ConnectionManager();
@@ -146,6 +153,7 @@ public class BtService extends Service {
                 .setContentIntent(PendingIntent.getActivity(this, 0, notificationIntent, 0));
         startForeground(2357, mBuilder.build());
 
+        nLog = new LogModule(this);
         final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
@@ -408,6 +416,7 @@ public class BtService extends Service {
             mChatService.start();
 
             for (String device_addr : devices) {
+                long starttime = System.currentTimeMillis();
                 //1- CONNECT
                 BluetoothDevice device = mAdapter.getRemoteDevice(device_addr);
                 try {
@@ -424,13 +433,13 @@ public class BtService extends Service {
 
                 while (mChatService.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
                     //Log.i("STATUS",String.valueOf(System.currentTimeMillis() - startTime));
-                    if (System.currentTimeMillis() - startTime > 5000) {
+                    if (System.currentTimeMillis() - startTime > 3000) {
                         Log.e(TAG, "Time for stablishing connection exceeded");
                         mChatService.setState(Global.CONECTION_FAILED);
                         break;
                     }
                 }
-
+                long connectime = System.currentTimeMillis();
                 if (mChatService.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
                     Log.i(TAG, prepareMessage());
                     sendMessage(prepareMessage());
@@ -439,7 +448,8 @@ public class BtService extends Service {
                     Log.i(TAG, "Waiting for Server restart.");
 
                 }
-
+                long sendtime = System.currentTimeMillis();
+                nLog.writeTimings(starttime, connectime, sendtime);
                 mChatService.start();
                 while (mChatService.getState() != BtModule.STATE_LISTEN) {
                 }

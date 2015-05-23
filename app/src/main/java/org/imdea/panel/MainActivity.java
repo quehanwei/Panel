@@ -24,12 +24,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import org.imdea.panel.Bluetooth.BtService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 public class MainActivity extends FragmentActivity implements ActionBar.TabListener {
@@ -67,6 +69,10 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        String type = intent.getType();
 
         setContentView(R.layout.activity_main);
 
@@ -114,7 +120,24 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         Intent BTmodule = new Intent(this, BtService.class);
         this.startService(BTmodule);
 
+        if (Intent.ACTION_SEND.equals(action) && type != null) {
+            if ("text/plain".equals(type)) {
+                handleSendText(intent); // Handle text being sent
+            }
+        }
+
     }
+
+    void handleSendText(Intent intent) {
+        String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (sharedText != null) {
+            BtMessage item = new BtMessage(sharedText, PreferenceManager.getDefaultSharedPreferences(this).getString("username_field", "anonymous"));
+            DBHelper.insertMessage(MainActivity.db, item);
+            GeneralFragment.refresh();
+            Global.messages.add(item); // We add the message to the temporal list
+        }
+    }
+
 
     public void enableBt() {
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -172,7 +195,9 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                 return true;
 
             case R.id.action_exit:
+                stopService(new Intent(this, BtService.class));
                 finish();
+
                 return true;
 
         }

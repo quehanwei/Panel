@@ -1,4 +1,4 @@
-package org.imdea.panel;
+package org.imdea.panel.Bluetooth;
 
 /*
  * Copyright (C) 2014 The Android Open Source Project
@@ -25,6 +25,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+
+import org.imdea.panel.Global;
 
 import java.io.IOException;
 import java.io.InputStream;
