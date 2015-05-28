@@ -19,6 +19,7 @@ package org.imdea.panel;
 import android.app.AlertDialog;
 import android.app.FragmentManager;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
@@ -29,6 +30,8 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Database.BtMessage;
+import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -37,11 +40,18 @@ import java.util.ArrayList;
 public class showMessages extends FragmentActivity {
 
     public static ListView listv;
-    View rootView;
     public static ArrayList<BtMessage> messages;
     public static String tag;
     public static ItemAdapter adapter;
     public FragmentManager fm;
+    View rootView;
+
+    public static void refresh() {
+        messages.clear();
+        messages.addAll(DBHelper.RecoverMessagesByTag(MainActivity.db, tag));
+        adapter.notifyDataSetChanged();
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +59,7 @@ public class showMessages extends FragmentActivity {
         setContentView(R.layout.activity_show_messages);
 
         tag = getIntent().getExtras().getString("tag");
-        messages = DBHelper.RecoverMessagesByTag(MainActivity.db,tag);
+        messages = DBHelper.RecoverMessagesByTag(MainActivity.db, tag);
         setTitle(tag);
         listv = (ListView) findViewById(R.id.listViewM);
         fm = getFragmentManager();
@@ -71,15 +81,34 @@ public class showMessages extends FragmentActivity {
 
         listv.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                final Object listItem = listv.getItemAtPosition(position);
+                final BtMessage listItem = (BtMessage) listv.getItemAtPosition(position);
                 Log.i("TAG_FRAGMENT", "Long Click on " + listItem.toString());
                 AlertDialog.Builder builder = new AlertDialog.Builder(showMessages.this);
-                builder.setCancelable(true).setPositiveButton("DELETE", new DialogInterface.OnClickListener() {
+                final CharSequence[] shareItems = {"DELETE", "INFORMATION"};
+                builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        if (id == 0) {
+                            DBHelper.deleteMessage(MainActivity.db, listItem);
+                            refresh();
+                        } else {
+                            Intent intent = new Intent(getBaseContext(), InfoActivity.class);
+                            intent.putExtra("USER", listItem.user);
+                            intent.putExtra("MAC", listItem.mac_address);
+                            intent.putExtra("DATETIME", listItem.time + " " + listItem.date);
+                            intent.putExtra("MSG", listItem.msg);
+                            intent.putExtra("TAG", listItem.tag);
+                            startActivity(intent);
+                        }
+                    }
+                });
+
+                /*builder.setCancelable(true).setPositiveButton("DELETE", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         DBHelper.deleteMessage(MainActivity.db,(BtMessage) listItem);
                         refresh();
                     }
-                });
+                });*/
+
                 AlertDialog alert = builder.create();
                 alert.show();
                 return false;
@@ -87,7 +116,6 @@ public class showMessages extends FragmentActivity {
 
         });
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -117,12 +145,5 @@ public class showMessages extends FragmentActivity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    public static void refresh(){
-        messages.clear();
-        messages.addAll(DBHelper.RecoverMessagesByTag(MainActivity.db,tag));
-        adapter.notifyDataSetChanged();
-
     }
 }

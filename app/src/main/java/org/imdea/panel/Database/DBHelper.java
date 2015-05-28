@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.imdea.panel;
+package org.imdea.panel.Database;
 
 import android.content.Context;
 import android.database.Cursor;

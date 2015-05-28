@@ -27,6 +27,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import org.imdea.panel.Bluetooth.Global;
+import org.imdea.panel.Database.BtMessage;
+import org.imdea.panel.Database.DBHelper;
+
 
 public class InputFragment extends DialogFragment {
 

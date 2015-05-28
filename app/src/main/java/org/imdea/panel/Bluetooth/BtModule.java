@@ -26,11 +26,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-import org.imdea.panel.Global;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
@@ -53,6 +52,9 @@ public class BtModule {
     // Member fields
     private final BluetoothAdapter mAdapter;
     private final Handler mHandler;
+    Method listenChannel;
+    Method createChannel;
+    boolean channelFixed = true;
     private AcceptThread mInsecureAcceptThread;
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
@@ -65,9 +67,29 @@ public class BtModule {
      * @param handler A Handler to send messages back to the UI Activity
      */
     public BtModule(Context context, Handler handler) {
+
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
+
+        try {
+            listenChannel = mAdapter.getClass().getMethod("listenUsingInsecureRfcommOn", new Class[]{int.class});
+        } catch (Exception e) {
+            channelFixed = false;
+            Log.e(TAG, "Error while executing reflecting speakChannel", e);
+        }
+        /*
+
+
+         */
+        try {
+            createChannel = BluetoothDevice.class.getMethod("createInsecureRfcommSocket", new Class[]{int.class});
+        } catch (Exception e) {
+            channelFixed = false;
+            Log.e(TAG, "Error while executing reflecting listenChannel", e);
+        }
+
+        channelFixed = false;
     }
 
     /**
@@ -180,7 +202,9 @@ public class BtModule {
         // Send the name of the connected device back to the UI Activity
         Message msg = mHandler.obtainMessage(Global.MESSAGE_DEVICE_NAME);
         Bundle bundle = new Bundle();
-        bundle.putString(Global.DEVICE_NAME, device.getName());
+        //  Instead of putting the Devices name that sometimes it is not availabel I'm going to send tghe device MAC Address
+        // bundle.putString(Global.DEVICE_NAME, device.getName());
+        bundle.putString(Global.DEVICE_NAME, device.getAddress());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
         Log.w(TAG, "Connected to: " + device.getName());
@@ -277,9 +301,13 @@ public class BtModule {
             Log.d(TAG, "BEGIN mAcceptThread" + this);
             // Create a new listening server socket
             try {
-                tmp = mAdapter.listenUsingInsecureRfcommWithServiceRecord(NAME_INSECURE, MY_UUID_INSECURE);
+                if (channelFixed)
+                    tmp = (BluetoothServerSocket) listenChannel.invoke(BluetoothAdapter.getDefaultAdapter(), 3);
+                else
+                    tmp = mAdapter.listenUsingInsecureRfcommWithServiceRecord(NAME_INSECURE, MY_UUID_INSECURE);
 
-            } catch (IOException e) {
+
+            } catch (Exception e) {
                 Log.e(TAG, "Listen() failed", e);
             }
             mmServerSocket = tmp;
@@ -354,10 +382,10 @@ public class BtModule {
             // Get a BluetoothSocket for a connection with the
             // given BluetoothDevice
             try {
+                if (channelFixed) tmp = (BluetoothSocket) createChannel.invoke(device, 2);
+                else tmp = device.createInsecureRfcommSocketToServiceRecord(MY_UUID_INSECURE);
 
-                tmp = device.createInsecureRfcommSocketToServiceRecord(MY_UUID_INSECURE);
-
-            } catch (IOException e) {
+            } catch (Exception e) {
                 Log.e(TAG, "Socket create() failed", e);
             }
             mmSocket = tmp;

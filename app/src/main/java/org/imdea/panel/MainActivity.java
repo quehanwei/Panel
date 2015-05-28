@@ -23,8 +23,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
@@ -32,37 +35,19 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import org.imdea.panel.Bluetooth.BtService;
+import org.imdea.panel.Bluetooth.Global;
+import org.imdea.panel.Database.BtMessage;
+import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.TabsPagerAdapter;
+
+import java.io.ByteArrayOutputStream;
 
 public class MainActivity extends FragmentActivity implements ActionBar.TabListener {
 
     public static FragmentManager fm;
     public static SQLiteDatabase db;
-    public static BtService BtModule = null;
-    private final int MESSAGE_RECEIVED = 23;
-    //public static BluetoothChatService mChatService = null;
-    private newMessage messageReceiver = new newMessage();
-    /**
-     * The Handler that gets information back from the BluetoothChatService
-     *
-    private final Handler mHandler = new Handler() {
 
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-     case Global.MESSAGE_STATE_CHANGE:
-                    break;
-     case Global.MESSAGE_WRITE:   // I'm sending the message
-                    break;
-     case Global.MESSAGE_READ:    // I'm receiving the Message
-                    GeneralFragment.refresh();
-                    TagsFragment.refresh();
-                    break;
-     case Global.MESSAGE_TOAST:
-                    break;
-            }
-        }
-    };
-     */
+    private newMessage messageReceiver = new newMessage();
 
     private ViewPager viewPager;
     private ActionBar actionbar;
@@ -94,18 +79,15 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
          * */
         viewPager.setOnPageChangeListener(new ViewPager.OnPageChangeListener() {
 
-            @Override
             public void onPageSelected(int position) {
                 // on changing the page
                 // make respected tab selected
                 actionbar.setSelectedNavigationItem(position);
             }
 
-            @Override
             public void onPageScrolled(int arg0, float arg1, int arg2) {
             }
 
-            @Override
             public void onPageScrollStateChanged(int arg0) {
             }
         });
@@ -117,12 +99,49 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         // Initialize the BluetoothChatService to perform bluetooth connections
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
-        Intent BTmodule = new Intent(this, BtService.class);
-        this.startService(BTmodule);
+        this.startService(new Intent(this, BtService.class));
+
+        //this.startService(new Intent(this, WifiService.class));
+
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
                 handleSendText(intent); // Handle text being sent
+            } else if (type.startsWith("image/")) {
+                handleSendImage(intent); // Handle single image being sent
+            }
+
+        }
+
+    }
+
+    void handleSendImage(Intent intent) {
+        Uri imageUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (imageUri != null) {
+            // Update UI to reflect image being shared
+            try {
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+
+                int outWidth = 600;
+                int outHeight = 600;
+                if (bitmap.getWidth() > bitmap.getHeight()) {
+                    outHeight = (bitmap.getHeight() * 600) / bitmap.getWidth();
+                } else {
+                    outWidth = (bitmap.getWidth() * 600) / bitmap.getHeight();
+                }
+
+                Bitmap resized_bm = Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true);
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                resized_bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                byte[] byteArray = stream.toByteArray();
+
+                BtMessage item = new BtMessage(new String(byteArray), PreferenceManager.getDefaultSharedPreferences(this).getString("username_field", "anonymous"));
+                DBHelper.insertMessage(MainActivity.db, item);
+                GeneralFragment.refresh();
+                Global.messages.add(item); // We add the message to the temporal list
+
+            } catch (Exception e) {
+
             }
         }
 
@@ -229,32 +248,28 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         registerReceiver(messageReceiver, new IntentFilter("org.imdea.panel.MSG_RECEIVED"));
     }
 
-    @Override
     public void onTabSelected(ActionBar.Tab tab, FragmentTransaction ft) {
         viewPager.setCurrentItem(tab.getPosition());
     }
 
-    @Override
     public void onTabUnselected(ActionBar.Tab tab, FragmentTransaction ft) {
 
     }
 
-    @Override
     public void onTabReselected(ActionBar.Tab tab, FragmentTransaction ft) {
 
     }
 
     protected void onDestroy(Bundle savedInstance) {
         db.close();
-        BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mAdapter.disable();
+        unregisterReceiver(messageReceiver);
+        BluetoothAdapter.getDefaultAdapter().disable();
         //FtpUpload uploadData = new FtpUpload();
         //mChatService.stop();
 
     }
 
     public class newMessage extends BroadcastReceiver {
-        @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (action.equalsIgnoreCase("org.imdea.panel.MSG_RECEIVED")) {

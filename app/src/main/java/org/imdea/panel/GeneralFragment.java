@@ -17,7 +17,9 @@
 package org.imdea.panel;
 
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -28,6 +30,8 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Database.BtMessage;
+import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.text.SimpleDateFormat;
@@ -37,12 +41,20 @@ import java.util.Date;
 public class GeneralFragment extends Fragment {
 
     public static ListView listv;
-    View rootView;
     public static ArrayList<BtMessage> messages;
-    String tag = null;
     public static ItemAdapter adapter;
     final String TAG = "GeneralFragment";
+    View rootView;
+    String tag = null;
+
     public GeneralFragment(){
+
+    }
+
+    public static void refresh() {
+        messages.clear();
+        messages.addAll(DBHelper.RecoverMessages(MainActivity.db));
+        adapter.notifyDataSetChanged();
 
     }
 
@@ -50,6 +62,7 @@ public class GeneralFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
     }
+
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         rootView = inflater.inflate(R.layout.fragment_general, container, false);
 
@@ -64,7 +77,8 @@ public class GeneralFragment extends Fragment {
             @Override
             public void onEntrada(Object item, View view) {
                 if (item != null) {
-
+                    if (((BtMessage) item).mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
+                        view.setBackgroundColor(0xCDCDCD);
                     //Log.i(TAG,"New Item " + item.toString());
                     TextView text_msg = (TextView) view.findViewById(R.id.msg);
                     text_msg.setText(((BtMessage) item).msg);
@@ -86,20 +100,42 @@ public class GeneralFragment extends Fragment {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Object listItem = listv.getItemAtPosition(position);
-                Log.i(TAG,"Click! "+listItem.toString());
+                Log.i(TAG, "Click! " + listItem.toString());
             }
         });
 
         listv.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                final Object listItem = listv.getItemAtPosition(position);
+                final BtMessage listItem = (BtMessage) listv.getItemAtPosition(position);
                 AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+                final CharSequence[] shareItems = {"Delete", "Information"};
+                builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        if (id == 0) {
+                            DBHelper.deleteMessage(MainActivity.db, listItem);
+                            refresh();
+                        } else {
+                            Intent intent = new Intent(getActivity(), InfoActivity.class);
+                            intent.putExtra("USER", listItem.user);
+                            intent.putExtra("MAC", listItem.mac_address);
+                            intent.putExtra("DATETIME", listItem.time + " " + listItem.date);
+                            intent.putExtra("MSG", listItem.msg);
+                            intent.putExtra("TAG", "");
+                            startActivity(intent);
+                        }
+
+                    }
+                });
+
+                /*
                 builder.setCancelable(true).setPositiveButton("DELETE", new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int id) {
                                 DBHelper.deleteMessage(MainActivity.db,(BtMessage) listItem);
                                 refresh();
                             }
                         });
+                */
                 AlertDialog alert = builder.create();
                 alert.show();
                 return false;
@@ -109,14 +145,6 @@ public class GeneralFragment extends Fragment {
 
         return rootView;
     }
-
-    public static void refresh(){
-        messages.clear();
-        messages.addAll(DBHelper.RecoverMessages(MainActivity.db));
-        adapter.notifyDataSetChanged();
-
-    }
-
 
     public void onDetach() {
         super.onDetach();

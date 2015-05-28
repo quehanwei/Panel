@@ -26,12 +26,27 @@ public class LogModule {
     final String TAG = "LogModule";
     Context mcontext;
     boolean turnOff = false;
-    String path = Environment.getExternalStorageDirectory().getPath() + "/";
+    String path;
 
     public LogModule(Context context) {
-        Log.i(TAG, path);
         mcontext = context;
+        if (isExternalStorageWritable()) {
+            path = Environment.getExternalStorageDirectory().getPath() + "/";
+        } else path = "";
+        Log.i(TAG, path);
+
     }
+
+    /* Checks if external storage is available for read and write */
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+
 
     public void writeToLog(String filename, String title, String text) {
         try {
@@ -39,7 +54,7 @@ public class LogModule {
             FileWriter fstream = new FileWriter(path + filename, true);
             PrintWriter out = new PrintWriter(fstream);
             String s = new SimpleDateFormat("yyyy.MM.dd.HH:mm:ss").format(Calendar.getInstance().getTime()) + "\t" + title + "\t" + text + "\n";
-            Log.i(TAG, s);
+            //Log.i(TAG, s);
             out.print(s);
             out.close();
         } catch (Exception e) {
@@ -54,10 +69,10 @@ public class LogModule {
         writeToLog("PanelLog", "GPS", devicelocation.getLatitude() + "\t" + devicelocation.getLongitude() + "\t" + devicelocation.getAccuracy() + "\t" + devicelocation.getTime());
     }
 
-    public void writeTimings(long Starttime, long Connecttime, long Sendtime) {
+    public void writeTimings(String mac, long Starttime, long Connecttime, long Sendtime) {
 
-        writeToLog("PanelLog", "TIME", String.valueOf(Connecttime - Starttime) + "\t" + String.valueOf(Sendtime - Connecttime));
-        Log.i("TIME", String.valueOf(Connecttime - Starttime) + "\t" + String.valueOf(Sendtime - Connecttime));
+        writeToLog("PanelLog", "TIME", mac + "\t" + String.valueOf(Connecttime - Starttime) + "\t" + String.valueOf(Sendtime - Connecttime));
+        Log.i("TIME", mac + "\t" + String.valueOf(Connecttime - Starttime) + "\t" + String.valueOf(Sendtime - Connecttime));
 
     }
 

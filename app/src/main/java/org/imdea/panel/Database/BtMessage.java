@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.imdea.panel;
+package org.imdea.panel.Database;
 
 import android.bluetooth.BluetoothAdapter;
 
@@ -152,7 +152,7 @@ public class BtMessage {
         return object;
     }
 
-    public String tohash() {
+    public String toHash() {
         String s = "";
         try {
             MessageDigest m = MessageDigest.getInstance("MD5");

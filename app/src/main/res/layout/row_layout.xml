@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+    android:id="@+id/row_line"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:id="@+id/row_line"
-    android:showDividers="middle|beginning|end"
-    android:measureWithLargestChild="true">
+    android:measureWithLargestChild="true"
+    android:orientation="vertical"
+    android:showDividers="middle|beginning|end">
 
 
     <TextView
@@ -13,31 +13,32 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
 
-        android:textSize="20sp"
-        android:elegantTextHeight="false"
-        android:textStyle="bold"
-        android:layout_marginLeft="5dp"
+        android:layout_gravity="left"
         android:layout_marginBottom="3dp"
-        android:layout_marginTop="3dp">
+        android:layout_marginLeft="5dp"
+        android:layout_marginTop="3dp"
+        android:elegantTextHeight="false"
+        android:textSize="20sp"
+        android:textStyle="bold">
     </TextView>
 
     <TextView
         android:id="@+id/msg"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="15sp"
+        android:layout_marginBottom="3dp"
         android:layout_marginLeft="5dp"
-        android:layout_marginBottom="3dp">
+        android:textSize="15sp">
     </TextView>
 
     <TextView
         android:id="@+id/datetime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="15sp"
+        android:layout_gravity="right"
         android:layout_marginRight="5dp"
         android:gravity="right"
-        android:layout_gravity="right">
+        android:textSize="15sp">
     </TextView>
 
 </LinearLayout> 

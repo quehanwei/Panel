@@ -29,6 +29,7 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -36,11 +37,18 @@ import java.util.ArrayList;
 public class TagsFragment extends Fragment {
 
     public static ListView listv;
-    View rootView;
     public static ArrayList<String> tags;
     public static ItemAdapter adapter;
+    View rootView;
     public TagsFragment(){
 
+    }
+
+    public static void refresh() {
+        tags.clear();
+        tags.addAll(DBHelper.getTags(MainActivity.db));
+        adapter.notifyDataSetChanged();
+        //listv.setAdapter(adapter);
     }
 
     public void onCreate(Bundle savedInstanceState) {
@@ -102,13 +110,6 @@ public class TagsFragment extends Fragment {
 
 
         return rootView;
-    }
-
-    public static void refresh(){
-        tags.clear();
-        tags.addAll(DBHelper.getTags(MainActivity.db));
-        adapter.notifyDataSetChanged();
-        //listv.setAdapter(adapter);
     }
 
 }
