@@ -70,7 +70,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         viewPager.setAdapter(mAdapter);
         actionbar.setHomeButtonEnabled(false);
         actionbar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
-
         actionbar.addTab(actionbar.newTab().setText("General").setTabListener(this));
         actionbar.addTab(actionbar.newTab().setText("Tags").setTabListener(this));
 
@@ -160,6 +159,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     public void enableBt() {
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+        Global.DEVICE_ADDRESS = mAdapter.getAddress();
 
         if (!mAdapter.isEnabled())
             startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
@@ -246,6 +246,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         //}
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
         registerReceiver(messageReceiver, new IntentFilter("org.imdea.panel.MSG_RECEIVED"));
+        registerReceiver(messageReceiver, new IntentFilter("org.imdea.panel.STATUS_CHANGED"));
     }
 
     public void onTabSelected(ActionBar.Tab tab, FragmentTransaction ft) {
@@ -275,6 +276,10 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             if (action.equalsIgnoreCase("org.imdea.panel.MSG_RECEIVED")) {
                 GeneralFragment.refresh();
                 TagsFragment.refresh();
+            }
+            if (action.equalsIgnoreCase("org.imdea.panel.STATUS_CHANGED")) {
+                String s = intent.getExtras().getString("STATUS");
+                setTitle(s);
             }
         }
     }

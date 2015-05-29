@@ -45,15 +45,13 @@ public class GeneralFragment extends Fragment {
     public static ItemAdapter adapter;
     final String TAG = "GeneralFragment";
     View rootView;
-    String tag = null;
-
     public GeneralFragment(){
 
     }
 
     public static void refresh() {
         messages.clear();
-        messages.addAll(DBHelper.RecoverMessages(MainActivity.db));
+        messages.addAll(DBHelper.recoverMessages(MainActivity.db));
         adapter.notifyDataSetChanged();
 
     }
@@ -66,8 +64,8 @@ public class GeneralFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         rootView = inflater.inflate(R.layout.fragment_general, container, false);
 
-            messages = new ArrayList<BtMessage>();
-            messages = DBHelper.RecoverMessages(MainActivity.db);
+        messages = new ArrayList<>();
+        messages = DBHelper.recoverMessages(MainActivity.db);
             Log.i(TAG,"Showing General list");
 
 
@@ -77,17 +75,23 @@ public class GeneralFragment extends Fragment {
             @Override
             public void onEntrada(Object item, View view) {
                 if (item != null) {
-                    if (((BtMessage) item).mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
+
+                    // Changen the colour to easily know the differences between your messages and my messages
+                    if (((BtMessage) item).origin_mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
                         view.setBackgroundColor(0xCDCDCD);
+                    else
+                        Log.w(TAG, ((BtMessage) item).origin_mac_address + "!=" + BluetoothAdapter.getDefaultAdapter().getAddress());
+
                     //Log.i(TAG,"New Item " + item.toString());
                     TextView text_msg = (TextView) view.findViewById(R.id.msg);
                     text_msg.setText(((BtMessage) item).msg);
                     TextView text_user = (TextView) view.findViewById(R.id.name);
                     text_user.setText(((BtMessage) item).user);
                     TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    if(((BtMessage) item).date.equals(new SimpleDateFormat("MM.dd.yyyy").format(new Date())))   text_datetime.setText( "Today at " + ((BtMessage) item).time);
+                    if (((BtMessage) item).last_date.equals(new SimpleDateFormat("MM.dd.yyyy").format(new Date())))
+                        text_datetime.setText("Today at " + ((BtMessage) item).last_time);
                     else{
-                        text_datetime.setText(((BtMessage) item).date + " at " + ((BtMessage) item).time);
+                        text_datetime.setText(((BtMessage) item).last_date + " at " + ((BtMessage) item).last_time);
                     }
 
                 }
@@ -117,11 +121,7 @@ public class GeneralFragment extends Fragment {
                             refresh();
                         } else {
                             Intent intent = new Intent(getActivity(), InfoActivity.class);
-                            intent.putExtra("USER", listItem.user);
-                            intent.putExtra("MAC", listItem.mac_address);
-                            intent.putExtra("DATETIME", listItem.time + " " + listItem.date);
-                            intent.putExtra("MSG", listItem.msg);
-                            intent.putExtra("TAG", "");
+                            intent.putExtra("HASH", listItem.toHash());
                             startActivity(intent);
                         }
 

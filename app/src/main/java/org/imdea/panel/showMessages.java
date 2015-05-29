@@ -44,11 +44,10 @@ public class showMessages extends FragmentActivity {
     public static String tag;
     public static ItemAdapter adapter;
     public FragmentManager fm;
-    View rootView;
 
     public static void refresh() {
         messages.clear();
-        messages.addAll(DBHelper.RecoverMessagesByTag(MainActivity.db, tag));
+        messages.addAll(DBHelper.recoverMessagesByTag(MainActivity.db, tag));
         adapter.notifyDataSetChanged();
 
     }
@@ -59,7 +58,7 @@ public class showMessages extends FragmentActivity {
         setContentView(R.layout.activity_show_messages);
 
         tag = getIntent().getExtras().getString("tag");
-        messages = DBHelper.RecoverMessagesByTag(MainActivity.db, tag);
+        messages = DBHelper.recoverMessagesByTag(MainActivity.db, tag);
         setTitle(tag);
         listv = (ListView) findViewById(R.id.listViewM);
         fm = getFragmentManager();
@@ -72,7 +71,7 @@ public class showMessages extends FragmentActivity {
                     TextView text_user = (TextView) view.findViewById(R.id.name);
                     text_user.setText(((BtMessage) item).user);
                     TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    text_datetime.setText(((BtMessage) item).date +" "+ ((BtMessage) item).time);
+                    text_datetime.setText(((BtMessage) item).last_date + " " + ((BtMessage) item).last_time);
                 }
             }
         };
@@ -92,11 +91,7 @@ public class showMessages extends FragmentActivity {
                             refresh();
                         } else {
                             Intent intent = new Intent(getBaseContext(), InfoActivity.class);
-                            intent.putExtra("USER", listItem.user);
-                            intent.putExtra("MAC", listItem.mac_address);
-                            intent.putExtra("DATETIME", listItem.time + " " + listItem.date);
-                            intent.putExtra("MSG", listItem.msg);
-                            intent.putExtra("TAG", listItem.tag);
+                            intent.putExtra("HASH", listItem.toHash());
                             startActivity(intent);
                         }
                     }

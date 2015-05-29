@@ -77,7 +77,7 @@ public class InputFragment extends DialogFragment {
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You cannot use whitespaces on a Tag", Toast.LENGTH_SHORT);
                             toast.show();
                         } else {
-                            if (!DBHelper.TagExists(MainActivity.db, mEditText.getText().toString())) {    // If the tag does not exists
+                            if (!DBHelper.existTag(MainActivity.db, mEditText.getText().toString())) {    // If the tag does not exists
                                 DBHelper.newTag(MainActivity.db, inputText);
                                 TagsFragment.refresh();
                             } else {

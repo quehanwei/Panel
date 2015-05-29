@@ -2,12 +2,13 @@ package org.imdea.panel;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
-import org.imdea.panel.Database.BtNode;
-
+import org.imdea.panel.Database.Messages;
 
 public class InfoActivity extends Activity {
 
@@ -16,51 +17,58 @@ public class InfoActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_info);
 
-        String smac, suser, smsg, sdateime, stag, shits, speers;
-
         Bundle extras = getIntent().getExtras();
-        suser = extras.getString("USER");
-        smac = extras.getString("MAC");
-        smsg = extras.getString("MSG");
-        sdateime = extras.getString("DATETIME");
-        stag = extras.getString("TAG");
-        shits = "0";
+        String shash = extras.getString("HASH");
 
-        BtMessage item = new BtMessage(smac, smsg, suser);
-        item.setTag(stag);
-        speers = "";
-        for (BtNode n : Global.nodes) {
-            if (n.HasBeenReceived(item.toHash())) speers = speers + n.MAC + "\n";
+        BtMessage item = Messages.getMessage(shash);
+
+        if (item != null) {
+
+            TextView user, mesg, orig_datetime, last_datetime, orig_mac, last_mac, peers, hits, hash;
+
+            user = (TextView) findViewById(R.id.fuser);
+            mesg = (TextView) findViewById(R.id.fmesg);
+            last_datetime = (TextView) findViewById(R.id.last_timedate);
+            orig_datetime = (TextView) findViewById(R.id.fdate);
+            last_mac = (TextView) findViewById(R.id.last_mac);
+            orig_mac = (TextView) findViewById(R.id.orig_mac);
+            peers = (TextView) findViewById(R.id.freceived);
+            hits = (TextView) findViewById(R.id.fhits);
+            hash = (TextView) findViewById(R.id.fhash);
+
+            hits.setText(String.valueOf(item.hits));
+            user.setText(item.user);
+            mesg.setText(item.msg);
+            orig_datetime.setText(item.origin_date + " " + item.last_time);
+            orig_mac.setText(item.origin_mac_address);
+            peers.setText(item.devicesToString());
+            hash.setText(item.toHash());
+
+            if (item.origin_mac_address.contains(Global.DEVICE_ADDRESS)) {
+                LinearLayout layout1 = (LinearLayout) findViewById(R.id.layo1);
+                LinearLayout layout2 = (LinearLayout) findViewById(R.id.layo2);
+                View view1 = findViewById(R.id.view1);
+                layout1.setVisibility(View.GONE);
+                layout2.setVisibility(View.GONE);
+                view1.setVisibility(View.GONE);
+
+            } else {
+                last_datetime.setText(item.last_date + " " + item.last_time);
+                last_mac.setText(item.last_mac_address);
+
+            }
+
+            hits.requestLayout();
+            user.requestLayout();
+            mesg.requestLayout();
+            last_datetime.requestLayout();
+            orig_datetime.requestLayout();
+            last_mac.requestLayout();
+            orig_mac.requestLayout();
+            peers.requestLayout();
+            hash.requestLayout();
+
         }
-
-        for (BtMessage m : Global.messages) {
-            if (m.toHash().equals(item.toHash())) shits = String.valueOf(m.hits);
-        }
-
-
-        TextView user, mesg, datetime, mac, peers, hits;
-
-        user = (TextView) findViewById(R.id.fuser);
-        mesg = (TextView) findViewById(R.id.fmesg);
-        datetime = (TextView) findViewById(R.id.fdate);
-        mac = (TextView) findViewById(R.id.fmac);
-        peers = (TextView) findViewById(R.id.freceived);
-        hits = (TextView) findViewById(R.id.fhits);
-
-        hits.setText(shits);
-        user.setText(suser);
-        mesg.setText(smsg);
-        datetime.setText(sdateime);
-        mac.setText(smac);
-        peers.setText(speers);
-
-        hits.requestLayout();
-        user.requestLayout();
-        mesg.requestLayout();
-        datetime.requestLayout();
-        mac.requestLayout();
-        peers.requestLayout();
-
     }
 
 

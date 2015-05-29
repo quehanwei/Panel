@@ -13,4 +13,13 @@
 
     <string name="title_activity_show_messages">ShowMessages</string>
     <string name="title_activity_info">Information</string>
+    <string name="last_hop_string">Last Hop MAC:</string>
+    <string name="n_tx_string">Transmissions:</string>
+    <string name="sent_to_string">Sent to:</string>
+    <string name="received_time_string">Received at:</string>
+    <string name="sent_at_string">Sent at:</string>
+    <string name="msg_string">Message:</string>
+    <string name="mac_string">MAC:</string>
+    <string name="user_string">Username:</string>
+    <string name="hash_string">Hash:</string>
 </resources>

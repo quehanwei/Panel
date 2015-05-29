@@ -5,8 +5,7 @@ import org.imdea.panel.Database.BtNode;
 
 import java.util.ArrayList;
 
-public interface Global {
-
+public class Global {
 
     // Message types sent from the BluetoothChatService Handler
     public static final int MESSAGE_STATE_CHANGE = 4;
@@ -16,11 +15,10 @@ public interface Global {
     public static final int MESSAGE_TOAST = 8;
     public static final int CONECTION_FAILED = 9;
 
-    public static ArrayList<BtMessage> messages = new ArrayList<BtMessage>();
-    public static ArrayList<BtNode> nodes = new ArrayList<BtNode>();
-    // Key names received from the BluetoothChatService Handler
+    public static volatile ArrayList<BtMessage> messages = new ArrayList<BtMessage>();
+    public static volatile ArrayList<BtNode> nodes = new ArrayList<BtNode>();
 
-    public static final String DEVICE_NAME = "device_name";
-    public static final String TOAST = "toast";
+    public static String DEVICE_NAME = "";
 
+    public static String DEVICE_ADDRESS = "";
 }

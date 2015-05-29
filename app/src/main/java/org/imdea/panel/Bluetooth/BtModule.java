@@ -275,13 +275,13 @@ public class BtModule {
      */
     private void connectionLost() {
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
-        Bundle bundle = new Bundle();
-        bundle.putString(Global.TOAST, "Device connection was lost");
+        //Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
+        //Bundle bundle = new Bundle();
+        //bundle.putString(Global.TOAST, "Device connection was lost");
         Log.e(TAG, "Device connection was lost");
 
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
+        //msg.setData(bundle);
+        //mHandler.sendMessage(msg);
 
         // Start the service over to restart listening mode
         BtModule.this.start();
@@ -485,7 +485,7 @@ public class BtModule {
                     break;
                 }
 
-                if (System.currentTimeMillis() - startTime > 6000) {
+                if (System.currentTimeMillis() - startTime > 10000) {
                     Log.e(TAG, "Time Exceeded");
                     connectionLost();
                     // Start the service over to restart listening mode
