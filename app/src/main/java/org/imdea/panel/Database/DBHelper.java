@@ -95,7 +95,7 @@ public class DBHelper extends SQLiteOpenHelper {
             // If the tag does not exists, create the tag
             if (!existTag(db, item.tag)) newTag(db, item.tag);
 
-            s = "INSERT INTO " + item.tag + "(origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits) VALUES (?,?,?,?,?,?,?,?,?,? ";
+            s = "INSERT INTO " + item.tag + "(origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits) VALUES (?,?,?,?,?,?,?,?,?,?) ";
             insertStatement = db.compileStatement(s);
             insertStatement.bindString(1, item.origin_mac_address);
             insertStatement.bindString(2, item.last_mac_address);
@@ -207,7 +207,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static int getNumberOfEntriesByTag(SQLiteDatabase db,String tag){
-        Cursor c = db.rawQuery("SELECT COUNT(id) FROM "+tag, null);
+        Cursor c = db.rawQuery("SELECT COUNT(origin_mac) FROM " + tag, null);
         c.moveToFirst();
         int n = c.getInt(0);
         c.close();
@@ -241,9 +241,17 @@ public class DBHelper extends SQLiteOpenHelper {
             Log.i(TAG, s);
             //db.execSQL(s);
         }else{
-            s = "DELETE FROM " + item.tag + " WHERE message='" + item.msg + "' AND id='" + item.origin_mac_address + "' AND time='" + item.origin_time + "' AND date='" + item.origin_date + "'";
-            Log.i(TAG,s);
-            db.execSQL(s);
+            //s = "DELETE FROM " + item.tag + " WHERE message='" + item.msg + "' AND id='" + item.origin_mac_address + "' AND time='" + item.origin_time + "' AND date='" + item.origin_date + "'";
+            //Log.i(TAG,s);
+            //db.execSQL(s);
+            s = "DELETE FROM " + item.tag + " WHERE message=? AND origin_mac=? AND origin_time=? AND origin_date=?";
+            preparedStatement = db.compileStatement(s);
+            preparedStatement.bindString(1, item.msg);
+            preparedStatement.bindString(2, item.origin_mac_address);
+            preparedStatement.bindString(3, item.origin_time);
+            preparedStatement.bindString(4, item.origin_date);
+            preparedStatement.executeUpdateDelete();
+            Log.i(TAG, s);
         }
     }
 

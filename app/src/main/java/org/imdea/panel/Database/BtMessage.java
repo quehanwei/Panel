@@ -94,7 +94,6 @@ public class BtMessage {
         this.hits = hits;
         String[] macs = devices.replace("[", "").replace("]", "").split(", ");
         for (String mac : macs) this.devices.add(mac);
-
     }
 
     /* This Method create a message from the JSONObject received
@@ -122,7 +121,7 @@ public class BtMessage {
 
         }
         try {
-            this.origin_mac_address = json_item.getString("MAC");
+            this.origin_mac_address = json_item.getString("mac");
         } catch (Exception e) {
 
         }
@@ -136,6 +135,7 @@ public class BtMessage {
         } catch (Exception e) {
 
         }
+
         this.last_mac_address = mac_addr;
         this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
         this.last_time = new SimpleDateFormat("HH:mm").format(new Date());

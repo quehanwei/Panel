@@ -430,11 +430,14 @@ public class BtService extends Service {
 
     }
 
-
-    public void StopReceiver() {
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
         unregisterReceiver(bReceiver); // Don't forget to unregister during onDestroy
-    }
+        mHandler.removeCallbacksAndMessages(null);
+        mAdapter.cancelDiscovery();
 
+    }
     public boolean nodeIsNew(String MAC) {
         for (BtNode n : Global.nodes) {
             if (n.MAC.equals(MAC)) return false;

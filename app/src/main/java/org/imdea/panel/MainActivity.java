@@ -50,7 +50,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     private newMessage messageReceiver = new newMessage();
 
     private ViewPager viewPager;
-    private ActionBar actionbar;
+    private android.app.ActionBar actionbar;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,11 +64,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         // Initilization
         viewPager = (ViewPager) findViewById(R.id.pager);
         actionbar = getActionBar();
+
         TabsPagerAdapter mAdapter = new TabsPagerAdapter(getSupportFragmentManager());
         fm = getSupportFragmentManager();
 
         viewPager.setAdapter(mAdapter);
-        actionbar.setHomeButtonEnabled(false);
         actionbar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
         actionbar.addTab(actionbar.newTab().setText("General").setTabListener(this));
         actionbar.addTab(actionbar.newTab().setText("Tags").setTabListener(this));
@@ -179,7 +179,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+        return super.onCreateOptionsMenu(menu);
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {

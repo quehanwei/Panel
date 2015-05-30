@@ -32,6 +32,7 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Database.Messages;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.text.SimpleDateFormat;
@@ -72,10 +73,13 @@ public class GeneralFragment extends Fragment {
         listv = (ListView) rootView.findViewById(R.id.listViewG);
 
         adapter = new ItemAdapter(getActivity(), R.layout.row_layout, messages) {
+
+
             @Override
+
+
             public void onEntrada(Object item, View view) {
                 if (item != null) {
-
                     // Changen the colour to easily know the differences between your messages and my messages
                     if (((BtMessage) item).origin_mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
                         view.setBackgroundColor(0xCDCDCD);
@@ -118,6 +122,7 @@ public class GeneralFragment extends Fragment {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
                             DBHelper.deleteMessage(MainActivity.db, listItem);
+                            Messages.deleteMessage(listItem);
                             refresh();
                         } else {
                             Intent intent = new Intent(getActivity(), InfoActivity.class);

@@ -2,6 +2,7 @@ package org.imdea.panel;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -19,6 +20,9 @@ public class InfoActivity extends Activity {
 
         Bundle extras = getIntent().getExtras();
         String shash = extras.getString("HASH");
+
+        getActionBar().setDisplayHomeAsUpEnabled(true);
+        getActionBar().setDisplayShowHomeEnabled(true);
 
         BtMessage item = Messages.getMessage(shash);
 
@@ -69,6 +73,16 @@ public class InfoActivity extends Activity {
             hash.requestLayout();
 
         }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                this.finish();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
 

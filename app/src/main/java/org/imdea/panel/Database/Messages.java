@@ -141,4 +141,15 @@ public class Messages {
         return null;
     }
 
+    public static boolean deleteMessage(BtMessage item) {
+        for (BtMessage msg : Global.messages) {
+            if (msg.toHash().equals(item.toHash())) {
+                Global.messages.remove(msg);
+                return true;
+            }
+        }
+        return false;
+    }
+
+
 }

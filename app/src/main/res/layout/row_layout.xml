@@ -3,6 +3,7 @@
     android:id="@+id/row_line"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
+    android:background="#CFD8DC"
     android:measureWithLargestChild="true"
     android:orientation="vertical"
     android:showDividers="middle|beginning|end">

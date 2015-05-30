@@ -32,6 +32,7 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Database.Messages;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -62,7 +63,8 @@ public class showMessages extends FragmentActivity {
         setTitle(tag);
         listv = (ListView) findViewById(R.id.listViewM);
         fm = getFragmentManager();
-
+        getActionBar().setDisplayHomeAsUpEnabled(true);
+        getActionBar().setDisplayShowHomeEnabled(true);
         adapter = new ItemAdapter(this, R.layout.row_layout, messages){
             public void onEntrada(Object item, View view) {
                 if (item != null) {
@@ -83,11 +85,12 @@ public class showMessages extends FragmentActivity {
                 final BtMessage listItem = (BtMessage) listv.getItemAtPosition(position);
                 Log.i("TAG_FRAGMENT", "Long Click on " + listItem.toString());
                 AlertDialog.Builder builder = new AlertDialog.Builder(showMessages.this);
-                final CharSequence[] shareItems = {"DELETE", "INFORMATION"};
+                final CharSequence[] shareItems = {"Delete", "Information"};
                 builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
                             DBHelper.deleteMessage(MainActivity.db, listItem);
+                            Messages.deleteMessage(listItem);
                             refresh();
                         } else {
                             Intent intent = new Intent(getBaseContext(), InfoActivity.class);
@@ -124,21 +127,21 @@ public class showMessages extends FragmentActivity {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        switch (item.getItemId()) {
+            case R.id.action_newMsg:
+                Bundle args = new Bundle();
+                args.putBoolean("isTag", false);
+                args.putString("Tag", tag);
+                InputFragment newMsgDialog = new InputFragment();
+                newMsgDialog.setArguments(args);
+                newMsgDialog.show(getSupportFragmentManager(), "fragment_edit_name");
+                return true;
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+            case android.R.id.home:
+                this.finish();
+                return true;
         }
-        if (id == R.id.action_newMsg){
-            Bundle args = new Bundle();
-            args.putBoolean("isTag",false);
-            args.putString("Tag",tag);
-            InputFragment newMsgDialog = new InputFragment();
-            newMsgDialog.setArguments(args);
-            newMsgDialog.show(getSupportFragmentManager(),"fragment_edit_name");
-        }
-
         return super.onOptionsItemSelected(item);
+
     }
 }
