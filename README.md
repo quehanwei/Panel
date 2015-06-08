@@ -7,7 +7,7 @@ It's still under development.
 
 #### Here you've some screenshots:
 
-<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png" alt="Main" style="width:480;height:640">
+<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png" alt="Main" style="width:240;height:320">
 
 <img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img2.png" alt="Menu Options" style="width:480;height:640">
 
