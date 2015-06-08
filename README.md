@@ -7,9 +7,9 @@ It's still under development.
 
 #### Here you've some screenshots:
 
-![Main Page](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png =240x320)
+<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png" alt="Main" style="width:480;height:640">
 
-![Menu Options](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img2.png =480x640)
+<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img2.png" alt="Menu Options" style="width:480;height:640">
 
 ![Packet Structure](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/Packets.png "Packet Structure")
 
