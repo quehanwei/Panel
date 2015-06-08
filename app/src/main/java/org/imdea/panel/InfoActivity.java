@@ -9,7 +9,9 @@ import android.widget.TextView;
 
 import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
-import org.imdea.panel.Database.Messages;
+import org.imdea.panel.Database.DBHelper;
+
+@SuppressWarnings({"unchecked"})
 
 public class InfoActivity extends Activity {
 
@@ -24,11 +26,12 @@ public class InfoActivity extends Activity {
         getActionBar().setDisplayHomeAsUpEnabled(true);
         getActionBar().setDisplayShowHomeEnabled(true);
 
-        BtMessage item = Messages.getMessage(shash);
+        BtMessage item = DBHelper.getMessage(Global.db, shash);
+
 
         if (item != null) {
 
-            TextView user, mesg, orig_datetime, last_datetime, orig_mac, last_mac, peers, hits, hash;
+            TextView user, mesg, orig_datetime, last_datetime, orig_mac, last_mac, peers, hits, hash, size;
 
             user = (TextView) findViewById(R.id.fuser);
             mesg = (TextView) findViewById(R.id.fmesg);
@@ -39,6 +42,7 @@ public class InfoActivity extends Activity {
             peers = (TextView) findViewById(R.id.freceived);
             hits = (TextView) findViewById(R.id.fhits);
             hash = (TextView) findViewById(R.id.fhash);
+            size = (TextView) findViewById(R.id.fsize);
 
             hits.setText(String.valueOf(item.hits));
             user.setText(item.user);
@@ -47,6 +51,7 @@ public class InfoActivity extends Activity {
             orig_mac.setText(item.origin_mac_address);
             peers.setText(item.devicesToString());
             hash.setText(item.toHash());
+            size.setText(item.toJson().toString().getBytes().length + " Bytes");
 
             if (item.origin_mac_address.contains(Global.DEVICE_ADDRESS)) {
                 LinearLayout layout1 = (LinearLayout) findViewById(R.id.layo1);
@@ -71,6 +76,7 @@ public class InfoActivity extends Activity {
             orig_mac.requestLayout();
             peers.requestLayout();
             hash.requestLayout();
+            size.requestLayout();
 
         }
     }

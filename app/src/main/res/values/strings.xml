@@ -22,4 +22,6 @@
     <string name="mac_string">MAC:</string>
     <string name="user_string">Username:</string>
     <string name="hash_string">Hash:</string>
+    <string name="size_string">Size:</string>
+    <string name="send_string">Send</string>
 </resources>

@@ -1,23 +1,26 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/edit_name"
     android:layout_width="wrap_content" android:layout_height="wrap_content"
-    android:layout_gravity="center" android:orientation="vertical"  >
+    android:layout_gravity="center"
+    android:orientation="vertical">
 
     <EditText
         android:id="@+id/txt_your_name"
-        android:layout_width="fill_parent"  android:layout_height="wrap_content"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:imeOptions="actionDone"
         android:inputType="text|textMultiLine"
-    android:imeOptions="actionDone"
         android:lines="6"
         android:linksClickable="true"
         android:minLines="3"
         android:minWidth="30dp" />
 
     <Button
+        android:id="@+id/send_btn"
+        style="@android:style/Widget.Holo.Light.Button.Borderless.Small"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Send"
-        android:id="@+id/send_btn"
-        android:layout_gravity="center"
-        android:layout_margin="3dp" />
+        android:layout_gravity="left"
+        android:text="@string/send_string"
+        android:textSize="15sp" />
 </LinearLayout>

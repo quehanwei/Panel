@@ -1,9 +1,6 @@
 package org.imdea.panel.Bluetooth;
 
-import org.imdea.panel.Database.BtMessage;
-import org.imdea.panel.Database.BtNode;
-
-import java.util.ArrayList;
+import android.database.sqlite.SQLiteDatabase;
 
 public class Global {
 
@@ -15,8 +12,7 @@ public class Global {
     public static final int MESSAGE_TOAST = 8;
     public static final int CONECTION_FAILED = 9;
 
-    public static volatile ArrayList<BtMessage> messages = new ArrayList<BtMessage>();
-    public static volatile ArrayList<BtNode> nodes = new ArrayList<BtNode>();
+    public static SQLiteDatabase db;
 
     public static String DEVICE_NAME = "";
 

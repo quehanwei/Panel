@@ -463,7 +463,7 @@ public class BtModule {
 
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[3064];
+            byte[] buffer = new byte[15320];
             int bytes;
 
             // Keep listening to the InputStream while connected

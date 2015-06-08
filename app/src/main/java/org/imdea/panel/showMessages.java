@@ -30,9 +30,9 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Database.Messages;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ public class showMessages extends FragmentActivity {
 
     public static void refresh() {
         messages.clear();
-        messages.addAll(DBHelper.recoverMessagesByTag(MainActivity.db, tag));
+        messages.addAll(DBHelper.recoverMessagesByTag(Global.db, tag));
         adapter.notifyDataSetChanged();
 
     }
@@ -59,7 +59,7 @@ public class showMessages extends FragmentActivity {
         setContentView(R.layout.activity_show_messages);
 
         tag = getIntent().getExtras().getString("tag");
-        messages = DBHelper.recoverMessagesByTag(MainActivity.db, tag);
+        messages = DBHelper.recoverMessagesByTag(Global.db, tag);
         setTitle(tag);
         listv = (ListView) findViewById(R.id.listViewM);
         fm = getFragmentManager();
@@ -89,8 +89,8 @@ public class showMessages extends FragmentActivity {
                 builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
-                            DBHelper.deleteMessage(MainActivity.db, listItem);
-                            Messages.deleteMessage(listItem);
+                            DBHelper.deleteMessage(Global.db, listItem);
+                            //Messages.deleteMessage(listItem);
                             refresh();
                         } else {
                             Intent intent = new Intent(getBaseContext(), InfoActivity.class);

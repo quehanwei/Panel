@@ -30,14 +30,17 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Database.Messages;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+
+@SuppressWarnings({"unchecked"})
+
 
 public class GeneralFragment extends Fragment {
 
@@ -52,7 +55,7 @@ public class GeneralFragment extends Fragment {
 
     public static void refresh() {
         messages.clear();
-        messages.addAll(DBHelper.recoverMessages(MainActivity.db));
+        messages.addAll(DBHelper.recoverMessages(Global.db));
         adapter.notifyDataSetChanged();
 
     }
@@ -66,7 +69,7 @@ public class GeneralFragment extends Fragment {
         rootView = inflater.inflate(R.layout.fragment_general, container, false);
 
         messages = new ArrayList<>();
-        messages = DBHelper.recoverMessages(MainActivity.db);
+        messages = DBHelper.recoverMessages(Global.db);
             Log.i(TAG,"Showing General list");
 
 
@@ -83,8 +86,6 @@ public class GeneralFragment extends Fragment {
                     // Changen the colour to easily know the differences between your messages and my messages
                     if (((BtMessage) item).origin_mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
                         view.setBackgroundColor(0xCDCDCD);
-                    else
-                        Log.w(TAG, ((BtMessage) item).origin_mac_address + "!=" + BluetoothAdapter.getDefaultAdapter().getAddress());
 
                     //Log.i(TAG,"New Item " + item.toString());
                     TextView text_msg = (TextView) view.findViewById(R.id.msg);
@@ -121,8 +122,8 @@ public class GeneralFragment extends Fragment {
                 builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
-                            DBHelper.deleteMessage(MainActivity.db, listItem);
-                            Messages.deleteMessage(listItem);
+                            DBHelper.deleteMessage(Global.db, listItem);
+                            //Messages.deleteMessage(listItem);
                             refresh();
                         } else {
                             Intent intent = new Intent(getActivity(), InfoActivity.class);

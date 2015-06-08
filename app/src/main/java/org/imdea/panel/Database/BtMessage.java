@@ -17,6 +17,7 @@
 package org.imdea.panel.Database;
 
 import android.bluetooth.BluetoothAdapter;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -58,25 +59,8 @@ public class BtMessage {
         this.devices = new ArrayList<>();
         this.hits = 0;
 
-    }
-
-    // That is the basic constructor of the Input Message
-    public BtMessage(String last_mac, String origin_mac, String msg, String user, String time, String date) {
-        this.msg = msg;
-        this.user = user;
-        this.isGeneral = true;
-        this.tag = "";
-        this.origin_mac_address = origin_mac;
-        this.last_mac_address = last_mac;
-        this.origin_date = date;
-        this.origin_time = time;
-        this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
-        this.last_time = new SimpleDateFormat("HH:mm").format(new Date());
-        this.devices = new ArrayList<>();
-        this.hits = 0;
 
     }
-
 
     // This Constructor is to recover messages from the SQL Database
     public BtMessage(String origin_mac, String last_mac, String user, String message, String origin_date, String origin_time, String last_date, String last_time, String devices, int hits) {
@@ -93,6 +77,7 @@ public class BtMessage {
         this.devices = new ArrayList<>();
         this.hits = hits;
         String[] macs = devices.replace("[", "").replace("]", "").split(", ");
+
         for (String mac : macs) this.devices.add(mac);
     }
 
@@ -103,36 +88,42 @@ public class BtMessage {
         try {
             this.user = json_item.getString("user");
         }catch(Exception e){
-
+            Log.e("BtMesssage", "Parsing Error");
         }
         try {
         this.msg = json_item.getString("msg");
         } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
 
         }
         try {
         this.tag = json_item.getString("tag");
         }catch(Exception e){
+            Log.e("BtMesssage", "Parsing Error");
 
         }
         try {
         this.isGeneral = json_item.getBoolean("isGeneral");
         }catch(Exception e){
+            Log.e("BtMesssage", "Parsing Error");
 
         }
         try {
             this.origin_mac_address = json_item.getString("mac");
         } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
 
         }
         try {
             this.origin_date = json_item.getString("date");
         } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
 
         }
         try {
             this.origin_time = json_item.getString("time");
         } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
 
         }
 
@@ -166,6 +157,8 @@ public class BtMessage {
         for (String dev : devices) {
             if (dev.equals(addr)) return true;
         }
+        if (addr.equals(last_mac_address)) return true;
+        if (addr.equals(origin_mac_address)) return true;
         return false;
 
     }
@@ -201,17 +194,30 @@ public class BtMessage {
             m.update(this.toString().getBytes(), 0, this.toString().length());
             s = new BigInteger(1, m.digest()).toString(16);
         } catch (Exception e) {
-
+            Log.e("BtMesssage", "Error generating hash");
         }
         return s;
+    }
+
+
+    public String toAck() {
+        JSONObject object = new JSONObject();
+        try {
+            object.put("ACK", toHash());
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return object.toString();
     }
 
     public String devicesToString() {
         String s = "";
-        for (String dev : devices) {
-            s = s + dev + "\n";
+        if (devices != null) {
+            for (String dev : devices) {
+                s = s + dev + "\n";
+            }
         }
         return s;
     }
-
 }

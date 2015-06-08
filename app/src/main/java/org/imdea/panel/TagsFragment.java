@@ -29,10 +29,14 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
+
+@SuppressWarnings({"unchecked"})
+
 
 public class TagsFragment extends Fragment {
 
@@ -46,14 +50,14 @@ public class TagsFragment extends Fragment {
 
     public static void refresh() {
         tags.clear();
-        tags.addAll(DBHelper.getTags(MainActivity.db));
+        tags.addAll(DBHelper.getTags(Global.db));
         adapter.notifyDataSetChanged();
         //listv.setAdapter(adapter);
     }
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        tags = DBHelper.getTags(MainActivity.db);
+        tags = DBHelper.getTags(Global.db);
 
     }
 
@@ -67,9 +71,9 @@ public class TagsFragment extends Fragment {
             public void onEntrada(Object item, View view) {
                 if (item != null) {
                     TextView text_msg = (TextView) view.findViewById(R.id.name);
-                    text_msg.setText("#" +(String) item);
+                    text_msg.setText("#" + item);
                     TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    text_datetime.setText(DBHelper.getNumberOfEntriesByTag(MainActivity.db,(String)item)+" messages");
+                    text_datetime.setText(DBHelper.getNumberOfEntriesByTag(Global.db, (String) item) + " messages");
                 }
             }
         };
@@ -82,7 +86,7 @@ public class TagsFragment extends Fragment {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
                 builder.setCancelable(true).setPositiveButton("UNSUSCRIBE", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
-                        DBHelper.deleteTag(MainActivity.db, listItem.toString());
+                        DBHelper.deleteTag(Global.db, listItem.toString());
                         refresh();
                     }
                 });

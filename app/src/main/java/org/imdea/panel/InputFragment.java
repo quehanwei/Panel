@@ -77,8 +77,8 @@ public class InputFragment extends DialogFragment {
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You cannot use whitespaces on a Tag", Toast.LENGTH_SHORT);
                             toast.show();
                         } else {
-                            if (!DBHelper.existTag(MainActivity.db, mEditText.getText().toString())) {    // If the tag does not exists
-                                DBHelper.newTag(MainActivity.db, inputText);
+                            if (!DBHelper.existTag(Global.db, mEditText.getText().toString())) {    // If the tag does not exists
+                                DBHelper.newTag(Global.db, inputText);
                                 TagsFragment.refresh();
                             } else {
                                 Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Tag already exists", Toast.LENGTH_SHORT);
@@ -92,15 +92,17 @@ public class InputFragment extends DialogFragment {
                         if (Tag != null) {           // If the message belongs to a tag
                             BtMessage item = new BtMessage(inputText, SP.getString("username_field", "anonymous"));
                             item.setTag(Tag);
-                            DBHelper.insertMessage(MainActivity.db, item);
+                            DBHelper.insertMessage(Global.db, item);
                             showMessages.refresh();
-                            Global.messages.add(item); // We add the message to the temporal list
+
+                            //NO BECAUSE THE LIST IS REBUILD EVERY TIME WE TRY TO SEND SOMETHING
+                            //Global.messages.add(item); // We add the message to the temporal list
 
                         } else {                      // If the message is general
                             BtMessage item = new BtMessage(inputText, SP.getString("username_field", "anonymous"));
-                            DBHelper.insertMessage(MainActivity.db, item);
+                            DBHelper.insertMessage(Global.db, item);
                             GeneralFragment.refresh();
-                            Global.messages.add(item); // We add the message to the temporal list
+                            //Global.messages.add(item); // We add the message to the temporal list
 
                         }
 

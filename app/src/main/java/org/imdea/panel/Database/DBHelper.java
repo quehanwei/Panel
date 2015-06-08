@@ -156,6 +156,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static void updateMessage(SQLiteDatabase db, BtMessage item) {
+
         ContentValues newValues = new ContentValues();
         newValues.put("devices", item.devices.toString()); //These Fields should be your String values of actual column names
         newValues.put("hits", item.hits);
@@ -165,6 +166,41 @@ public class DBHelper extends SQLiteOpenHelper {
         } else {
             db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
         }
+
+    }
+
+
+    public static void updateMessageDevices(SQLiteDatabase db, BtMessage item) {
+
+        BtMessage old_msg = getMessage(db, item.toHash());
+        old_msg.addDevice(item.last_mac_address);
+
+        if (old_msg != null) {
+            ContentValues newValues = new ContentValues();
+            newValues.put("devices", old_msg.devices.toString()); //These Fields should be your String values of actual column names
+            newValues.put("last_mac", item.last_mac_address);
+            newValues.put("last_date", item.last_date);
+            newValues.put("last_time", item.last_time);
+            String[] whereArgs = {item.msg, item.origin_mac_address, item.origin_time, item.origin_date};
+            if (item.isGeneral) {
+                db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+            } else {
+                db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+            }
+        }
+    }
+
+    public static void updateMessageHits(SQLiteDatabase db, BtMessage item) {
+
+        ContentValues newValues = new ContentValues();
+        newValues.put("hits", item.hits);
+        String[] whereArgs = {item.msg, item.origin_mac_address, item.origin_time, item.origin_date};
+        if (item.isGeneral) {
+            db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+        } else {
+            db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+        }
+
     }
 
     public static ArrayList recoverMessages(SQLiteDatabase db) {
@@ -178,7 +214,7 @@ public class DBHelper extends SQLiteOpenHelper {
 
                 BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
                 messages.add(item);
-                //Log.i(TAG,"RecoverMessages: " + item.toString());
+                Log.i(TAG, "RecoverMessages: " + item.toString());
             } while (c.moveToNext());
         }
         c.close();
@@ -197,7 +233,7 @@ public class DBHelper extends SQLiteOpenHelper {
             do {
 
                 tags.add(c.getString(0));
-                Log.i(TAG,"Tag: " + c.getString(0));
+                Log.i(TAG, "Tag: " + c.getString(0));
             } while (c.moveToNext());
         }
 
@@ -226,6 +262,42 @@ public class DBHelper extends SQLiteOpenHelper {
         db.execSQL(s);
     }
 
+    public static BtMessage getMessage(SQLiteDatabase db, String hash) {
+
+        Cursor c;
+
+        c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM Messages", null);
+        if (c.moveToFirst()) {
+            do {
+
+                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
+                if (item.toHash().equals(hash)) {
+                    return item;
+                }
+            } while (c.moveToNext());
+        }
+
+        c.close();
+
+        ArrayList<String> tags = getTags(db);
+        for (Object tag : tags) {
+            c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM " + tag, null);
+
+            if (c.moveToFirst()) {
+                do {
+                    // We use the constructor String mac,String msg,String user,String time,String date
+                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
+                    item.setTag(tag.toString());   // Now we add the Tag
+                    if (item.toHash().equals(hash)) {
+                        return item;
+                    }
+                } while (c.moveToNext());
+            }
+            c.close();
+        }
+
+        return null;
+    }
     public static void deleteMessage(SQLiteDatabase db,BtMessage item){
         String s;
         SQLiteStatement preparedStatement;

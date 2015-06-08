@@ -22,7 +22,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -31,8 +30,10 @@ import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewConfiguration;
 
 import org.imdea.panel.Bluetooth.BtService;
 import org.imdea.panel.Bluetooth.Global;
@@ -41,11 +42,13 @@ import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
+
+@SuppressWarnings({"unchecked", "deprecation"})
 
 public class MainActivity extends FragmentActivity implements ActionBar.TabListener {
 
     public static FragmentManager fm;
-    public static SQLiteDatabase db;
 
     private newMessage messageReceiver = new newMessage();
 
@@ -64,6 +67,18 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         // Initilization
         viewPager = (ViewPager) findViewById(R.id.pager);
         actionbar = getActionBar();
+
+        try {
+            ViewConfiguration config = ViewConfiguration.get(this);
+            Field menuKeyField = ViewConfiguration.class.getDeclaredField("sHasPermanentMenuKey");
+            if (menuKeyField != null) {
+                menuKeyField.setAccessible(true);
+                menuKeyField.setBoolean(config, false);
+            }
+        } catch (Exception ex) {
+            // Ignore
+        }
+
 
         TabsPagerAdapter mAdapter = new TabsPagerAdapter(getSupportFragmentManager());
         fm = getSupportFragmentManager();
@@ -94,7 +109,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         //enableBt();
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
         DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
-        db = msg_database.getWritableDatabase();
+        Global.db = msg_database.getWritableDatabase();
+
         // Initialize the BluetoothChatService to perform bluetooth connections
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
@@ -135,12 +151,12 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                 byte[] byteArray = stream.toByteArray();
 
                 BtMessage item = new BtMessage(new String(byteArray), PreferenceManager.getDefaultSharedPreferences(this).getString("username_field", "anonymous"));
-                DBHelper.insertMessage(MainActivity.db, item);
+                DBHelper.insertMessage(Global.db, item);
                 GeneralFragment.refresh();
-                Global.messages.add(item); // We add the message to the temporal list
+                //Global.messages.add(item); // We add the message to the temporal list
 
             } catch (Exception e) {
-
+                Log.e("Main", "Error retrieving image", e);
             }
         }
 
@@ -150,12 +166,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
         if (sharedText != null) {
             BtMessage item = new BtMessage(sharedText, PreferenceManager.getDefaultSharedPreferences(this).getString("username_field", "anonymous"));
-            DBHelper.insertMessage(MainActivity.db, item);
+            DBHelper.insertMessage(Global.db, item);
             GeneralFragment.refresh();
-            Global.messages.add(item); // We add the message to the temporal list
+            //Global.messages.add(item); // We add the message to the temporal list
         }
     }
-
 
     public void enableBt() {
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -206,17 +221,23 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
             case R.id.action_newMsg:
                 //FragmentManager fm = getSupportFragmentManager();
+
                 args = new Bundle();
                 args.putBoolean("isTag",false);
                 InputFragment newMsgDialog = new InputFragment();
                 newMsgDialog.setArguments(args);
                 newMsgDialog.show(fm, "fragment_edit_name");
+
                 return true;
 
             case R.id.action_exit:
-                stopService(new Intent(this, BtService.class));
-                finish();
-
+                try {
+                    onDestroy();
+                    stopService(new Intent(this, BtService.class));
+                    finish();
+                } catch (Exception e) {
+                    Log.e("Main", "Error exiting", e);
+                }
                 return true;
 
         }
@@ -226,8 +247,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(messageReceiver);
+        try {
+            unregisterReceiver(messageReceiver);
+        } catch (Exception e) {
 
+        }
     }
 
     @Override
@@ -261,12 +285,18 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     }
 
-    protected void onDestroy(Bundle savedInstance) {
-        db.close();
-        unregisterReceiver(messageReceiver);
+    protected void onDestroy() {
+        Global.db.close();
+        try {
+            unregisterReceiver(messageReceiver);
+        } catch (Exception e) {
+            Log.e("Main", "Error unregistering messageReceiver");
+        }
         BluetoothAdapter.getDefaultAdapter().disable();
         //FtpUpload uploadData = new FtpUpload();
         //mChatService.stop();
+
+        super.onDestroy();
 
     }
 
@@ -279,7 +309,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
             if (action.equalsIgnoreCase("org.imdea.panel.STATUS_CHANGED")) {
                 String s = intent.getExtras().getString("STATUS");
-                setTitle(s);
+                //setTitle(s);
+                actionbar.setSubtitle(s);
             }
         }
     }

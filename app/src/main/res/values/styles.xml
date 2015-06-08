@@ -4,11 +4,14 @@
         <item name="android:actionBarStyle">@style/MyActionBar</item>
         <item name="android:actionBarTabStyle">@style/MyActionBarTabs</item>
         <item name="android:actionBarTabTextStyle">@style/MyActionBarTabText</item>
+        <item name="android:divider">@null</item>
+        <item name="android:actionBarDivider">@null</item>
+        <item name="android:fontFamily">sans-serif-light</item>
     </style>
 
     <!-- ActionBar styles -->
     <style name="MyActionBar" parent="@android:style/Widget.Holo.Light.ActionBar.Solid.Inverse">
-        <item name="android:background">#607D8B</item>
+        <item name="android:background">@color/tab_unselected</item>
         <item name="android:logo">@android:color/transparent</item>
     </style>
 
@@ -31,18 +34,19 @@
         <!-- The textColor property is backward compatible with the Support Library -->
     </style>
 
-
+    <!--
     <color name="tab_unselected">#607D8B</color>
     <color name="tab_selected">#455A64</color>
-
-    <color name="tab_unselected_focused">#607D8B</color>
-    <color name="tab_selected_focused">#455A64</color>
-
-    <color name="tab_selected_pressed">#B6B6B6</color>
-    <color name="tab_unselected_pressed">#B6B6B6</color>
-
+    <color name="tab_pressed">#B6B6B6</color>
     <color name="actionbar_text">#FFFFFF</color>
-    <color name="row_color">#CFD8DC</color>
+    <color name="row_color">#CFD8DC</color> -->
 
+
+    <color name="tab_selected">#0277BD</color>
+    <!-- BASE COLOR -->
+    <color name="tab_unselected">#03A9F4</color>
+    <color name="tab_pressed">#80DEEA</color>
+    <color name="row_color">#B3E5FC</color>
+    <color name="actionbar_text">#FFFFFF</color>
 
 </resources>

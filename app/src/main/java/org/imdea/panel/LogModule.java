@@ -18,9 +18,6 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
 
-/**
- * Created by Sergio on 18/05/2015.
- */
 public class LogModule {
 
     final String TAG = "LogModule";
