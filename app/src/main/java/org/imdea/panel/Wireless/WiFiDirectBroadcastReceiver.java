@@ -43,18 +43,18 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
             Log.d(TAG, "P2P peers changed. Requesting Peers");
 
             // Call WifiP2pManager.requestPeers() to get a list of current peers
-            if(mManager != null) mManager.requestPeers(mChannel,new WifiP2pManager.PeerListListener(){
-                public void onPeersAvailable(WifiP2pDeviceList peerList){
-                    // Out with the out, in with the new
-                    WifiService.peers.clear();
-                    WifiService.peers.addAll(peerList.getDeviceList());
-                    if(WifiService.peers.size() == 0 ){
-                        Log.w(TAG, "No Devices found");
+            if (mManager != null)
+                mManager.requestPeers(mChannel, new WifiP2pManager.PeerListListener() {
+                    public void onPeersAvailable(WifiP2pDeviceList peerList) {
+                        // Out with the out, in with the new
+                        WifiService.peers.clear();
+                        WifiService.peers.addAll(peerList.getDeviceList());
+                        if (WifiService.peers.size() == 0) {
+                            Log.w(TAG, "No Devices found");
 
+                        } else Log.i(TAG, WifiService.peers.toString());
                     }
-                    else Log.i(TAG,WifiService.peers.toString());
-                }
-            });
+                });
 
         } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
 
@@ -64,7 +64,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
             NetworkInfo networkInfo = (NetworkInfo) intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
 
-            if (networkInfo.isConnected()){
+            if (networkInfo.isConnected()) {
 
                 // We are connected with the other device, request connection
                 // info to find group owner IP
@@ -90,7 +90,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
                     }
                 });
-            }else{
+            } else {
                 LocalBroadcastManager.getInstance(context).sendBroadcast(new Intent("START_WIFI_SCAN"));
             }
 
