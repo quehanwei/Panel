@@ -21,6 +21,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="left"
-        android:text="@string/send_string"
+        android:text="Add"
         android:textSize="15sp" />
 </LinearLayout>

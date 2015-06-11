@@ -16,9 +16,7 @@
 
 package org.imdea.panel;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v4.app.DialogFragment;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,7 +26,6 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import org.imdea.panel.Bluetooth.Global;
-import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 
 
@@ -36,9 +33,7 @@ public class InputFragment extends DialogFragment {
 
     Button btn;
     String Tag;
-    SharedPreferences SP;
     private EditText mEditText;
-    private Boolean isTag;
     public InputFragment() {
         // Empty constructor required for DialogFragment
     }
@@ -47,32 +42,23 @@ public class InputFragment extends DialogFragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_input, container);
 
-        isTag = getArguments().getBoolean("isTag");
         Tag = getArguments().getString("Tag");
 
         mEditText = (EditText) view.findViewById(R.id.txt_your_name);
         btn = (Button) view.findViewById(R.id.send_btn);
 
-        // We set the title of the box
-        if (isTag) {
-            getDialog().setTitle("New Tag");
-            btn.setText("Add");
-        }
-
-        else getDialog().setTitle("New Message");
+        getDialog().setTitle("New Tag");
 
         btn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                SP = PreferenceManager.getDefaultSharedPreferences(getActivity());
+
                 String inputText = mEditText.getText().toString();
+
                 if(inputText.isEmpty()){
                     Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You didnt write anything!", Toast.LENGTH_SHORT);
                     toast.show();
                     dismiss();
-                }
-                else {
-                    if (isTag) {                 // IF THE STRING IS A TAG
-
+                } else {
                         if (inputText.indexOf(' ') != -1) {
                             Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You cannot use whitespaces on a Tag", Toast.LENGTH_SHORT);
                             toast.show();
@@ -85,28 +71,6 @@ public class InputFragment extends DialogFragment {
                                 toast.show();
                             }
                         }
-
-                    } else {
-
-
-                        if (Tag != null) {           // If the message belongs to a tag
-                            BtMessage item = new BtMessage(inputText, SP.getString("username_field", "anonymous"));
-                            item.setTag(Tag);
-                            DBHelper.insertMessage(Global.db, item);
-                            showMessages.refresh();
-
-                            //NO BECAUSE THE LIST IS REBUILD EVERY TIME WE TRY TO SEND SOMETHING
-                            //Global.messages.add(item); // We add the message to the temporal list
-
-                        } else {                      // If the message is general
-                            BtMessage item = new BtMessage(inputText, SP.getString("username_field", "anonymous"));
-                            DBHelper.insertMessage(Global.db, item);
-                            GeneralFragment.refresh();
-                            //Global.messages.add(item); // We add the message to the temporal list
-
-                        }
-
-                    }
                 }
                 dismiss();
 

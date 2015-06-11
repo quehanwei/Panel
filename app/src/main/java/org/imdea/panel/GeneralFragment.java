@@ -17,16 +17,21 @@
 package org.imdea.panel;
 
 import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -35,9 +40,7 @@ import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.adapter.ItemAdapter;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 
 @SuppressWarnings({"unchecked"})
 
@@ -45,10 +48,14 @@ import java.util.Date;
 public class GeneralFragment extends Fragment {
 
     public static ListView listv;
+    public static Button send_btn;
+    public static EditText text_field;
     public static ArrayList<BtMessage> messages;
     public static ItemAdapter adapter;
     final String TAG = "GeneralFragment";
     View rootView;
+    SharedPreferences SP;
+
     public GeneralFragment(){
 
     }
@@ -63,6 +70,9 @@ public class GeneralFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        SP = PreferenceManager.getDefaultSharedPreferences(getActivity());
+
+
     }
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -74,33 +84,45 @@ public class GeneralFragment extends Fragment {
 
 
         listv = (ListView) rootView.findViewById(R.id.listViewG);
+        send_btn = (Button) rootView.findViewById(R.id.btnSend);
+        text_field = (EditText) rootView.findViewById(R.id.inputMsg);
 
-        adapter = new ItemAdapter(getActivity(), R.layout.row_layout, messages) {
-
-
+        send_btn.setOnClickListener(new View.OnClickListener() {
             @Override
-
+            public void onClick(View v) {
+                String text = text_field.getText().toString();
+                if (!text.isEmpty()) {
+                    BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
+                    DBHelper.insertMessage(Global.db, item);
+                    text_field.setText("");
+                }
+                InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+                refresh();
+            }
+        });
+        adapter = new ItemAdapter(getActivity(), R.layout.row_layout, messages) {
 
             public void onEntrada(Object item, View view) {
                 if (item != null) {
                     // Changen the colour to easily know the differences between your messages and my messages
-                    if (((BtMessage) item).origin_mac_address.equals(BluetoothAdapter.getDefaultAdapter().getAddress()))
-                        view.setBackgroundColor(0xCDCDCD);
 
                     //Log.i(TAG,"New Item " + item.toString());
                     TextView text_msg = (TextView) view.findViewById(R.id.msg);
                     text_msg.setText(((BtMessage) item).msg);
                     TextView text_user = (TextView) view.findViewById(R.id.name);
                     text_user.setText(((BtMessage) item).user);
-                    TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
+                    /*TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
                     if (((BtMessage) item).last_date.equals(new SimpleDateFormat("MM.dd.yyyy").format(new Date())))
                         text_datetime.setText("Today at " + ((BtMessage) item).last_time);
                     else{
                         text_datetime.setText(((BtMessage) item).last_date + " at " + ((BtMessage) item).last_time);
-                    }
+                    }*/
 
                 }
             }
+
+
         };
 
         listv.setAdapter(adapter);

@@ -22,6 +22,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -39,6 +40,7 @@ import org.imdea.panel.Bluetooth.BtService;
 import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Wireless.WifiService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 import java.io.ByteArrayOutputStream;
@@ -55,8 +57,19 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     private ViewPager viewPager;
     private android.app.ActionBar actionbar;
 
+    private SharedPreferences SP;
+
+    public MainActivity() {
+
+    }
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        //Abrimos la base de datos 'DBUsuarios' en modo escritura
+        DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
+        Global.db = msg_database.getWritableDatabase();
+
+        //enableBt();
 
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -78,7 +91,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         } catch (Exception ex) {
             // Ignore
         }
-
 
         TabsPagerAdapter mAdapter = new TabsPagerAdapter(getSupportFragmentManager());
         fm = getSupportFragmentManager();
@@ -105,19 +117,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             public void onPageScrollStateChanged(int arg0) {
             }
         });
-
-        //enableBt();
-        //Abrimos la base de datos 'DBUsuarios' en modo escritura
-        DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
-        Global.db = msg_database.getWritableDatabase();
-
         // Initialize the BluetoothChatService to perform bluetooth connections
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
-        this.startService(new Intent(this, BtService.class));
-
-        //this.startService(new Intent(this, WifiService.class));
-
+        //this.startService(new Intent(this, BtService.class));
+        this.startService(new Intent(this, WifiService.class));
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
@@ -173,8 +177,9 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     }
 
     public void enableBt() {
+
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-        Global.DEVICE_ADDRESS = mAdapter.getAddress();
+        SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         if (!mAdapter.isEnabled())
             startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
@@ -183,12 +188,21 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         while (!mAdapter.isEnabled()) {
         }
 
+        String restoredMAC = SP.getString("MAC", null);
+        if (restoredMAC != null) {
+            Global.DEVICE_ADDRESS = restoredMAC;
+        } else {
+            Global.DEVICE_ADDRESS = mAdapter.getAddress();
+            SharedPreferences.Editor editor = SP.edit();
+            editor.putString("MAC", Global.DEVICE_ADDRESS);
+            editor.apply();
+        }
+
         if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 0);
             startActivity(discoverableIntent);
         }
-
 
     }
     @Override
@@ -213,14 +227,12 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
             case R.id.action_newGrp:
                 args = new Bundle();
-                args.putBoolean("isTag",true);
                 InputFragment newTagDialog = new InputFragment();
                 newTagDialog.setArguments(args);
                 newTagDialog.show(fm, "fragment_edit_name");
                 return true;
 
-            case R.id.action_newMsg:
-                //FragmentManager fm = getSupportFragmentManager();
+            /*case R.id.action_newMsg:
 
                 args = new Bundle();
                 args.putBoolean("isTag",false);
@@ -228,11 +240,10 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                 newMsgDialog.setArguments(args);
                 newMsgDialog.show(fm, "fragment_edit_name");
 
-                return true;
+                return true;*/
 
             case R.id.action_exit:
                 try {
-                    onDestroy();
                     stopService(new Intent(this, BtService.class));
                     finish();
                 } catch (Exception e) {
@@ -257,7 +268,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     @Override
     public void onResume() {
         super.onResume();
-        enableBt();
+        //enableBt();
         // Performing this check in onResume() covers the case in which BT was
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
@@ -269,6 +280,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         //    }
         //}
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
+
         registerReceiver(messageReceiver, new IntentFilter("org.imdea.panel.MSG_RECEIVED"));
         registerReceiver(messageReceiver, new IntentFilter("org.imdea.panel.STATUS_CHANGED"));
     }
@@ -287,6 +299,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     protected void onDestroy() {
         Global.db.close();
+        Global.db = null;
         try {
             unregisterReceiver(messageReceiver);
         } catch (Exception e) {

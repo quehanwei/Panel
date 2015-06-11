@@ -16,5 +16,8 @@ public class Global {
 
     public static String DEVICE_NAME = "";
 
-    public static String DEVICE_ADDRESS = "";
+    public static String DEVICE_ADDRESS = "00:00:00:00:00";
+
 }
+
+

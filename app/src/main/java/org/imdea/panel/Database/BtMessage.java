@@ -16,9 +16,9 @@
 
 package org.imdea.panel.Database;
 
-import android.bluetooth.BluetoothAdapter;
 import android.util.Log;
 
+import org.imdea.panel.Bluetooth.Global;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -50,10 +50,10 @@ public class BtMessage {
         this.user = user;
         this.isGeneral = true;
         this.tag = "";
-        this.origin_mac_address = BluetoothAdapter.getDefaultAdapter().getAddress();
+        this.origin_mac_address = Global.DEVICE_ADDRESS;
         this.last_mac_address = origin_mac_address;
         this.origin_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
-        this.origin_time = new SimpleDateFormat("HH:mm").format(new Date());
+        this.origin_time = new SimpleDateFormat("HH:mm:ss").format(new Date());
         this.last_date = origin_date;
         this.last_time = origin_time;
         this.devices = new ArrayList<>();
@@ -129,7 +129,7 @@ public class BtMessage {
 
         this.last_mac_address = mac_addr;
         this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
-        this.last_time = new SimpleDateFormat("HH:mm").format(new Date());
+        this.last_time = new SimpleDateFormat("HH:mm:ss").format(new Date());
 
     }
 
@@ -165,6 +165,7 @@ public class BtMessage {
 
     public String toString(){
         return "'" + origin_mac_address + "', '" + user + "', '" + msg + "', '" + tag + "'";
+
     }
 
     /* Prepares the Json Object that is going to be sent

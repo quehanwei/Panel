@@ -57,11 +57,13 @@ public class TagsFragment extends Fragment {
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        tags = DBHelper.getTags(Global.db);
 
     }
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+
+        tags = DBHelper.getTags(Global.db);
+
         rootView = inflater.inflate(R.layout.fragment_tags, container, false);
 
         listv = (ListView) rootView.findViewById(R.id.listViewT);
@@ -72,13 +74,15 @@ public class TagsFragment extends Fragment {
                 if (item != null) {
                     TextView text_msg = (TextView) view.findViewById(R.id.name);
                     text_msg.setText("#" + item);
-                    TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    text_datetime.setText(DBHelper.getNumberOfEntriesByTag(Global.db, (String) item) + " messages");
+                    TextView n_mesg = (TextView) view.findViewById(R.id.msg_number);
+                    n_mesg.setText(DBHelper.getNumberOfEntriesByTag(Global.db, (String) item) + " messages");
                 }
             }
         };
 
         listv.setAdapter(adapter);
+
+        refresh();
 
         listv.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {

@@ -6,6 +6,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 
+import org.imdea.panel.Bluetooth.Global;
+import org.imdea.panel.Database.BtMessage;
+import org.imdea.panel.R;
+
 import java.util.ArrayList;
 
 public abstract class ItemAdapter extends BaseAdapter {
@@ -24,10 +28,23 @@ public abstract class ItemAdapter extends BaseAdapter {
     @Override
     public View getView(int position, View view, ViewGroup parent) {
         if (view == null) {
-            LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            view = vi.inflate(R_layout_IdView, null);
+            try {
+                if (((BtMessage) items.get(position)).origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
+                    LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    view = vi.inflate(R.layout.list_item_right, null);
+                } else {
+                    LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    view = vi.inflate(R.layout.list_item_left, null);
+                }
+            } catch (Exception e) {
+                LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                view = vi.inflate(R_layout_IdView, null);
+            }
+
         }
+
         onEntrada (items.get(position), view);
+
         return view;
     }
 

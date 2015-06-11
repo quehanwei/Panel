@@ -224,21 +224,21 @@ public class DBHelper extends SQLiteOpenHelper {
     public static ArrayList getTags(SQLiteDatabase db) {
         // SELECT hastag FROM Messages WHERE hastag!='NONE'
         ArrayList<String> tags = new ArrayList<>();
+        if (db != null) {
+            Cursor c = db.rawQuery("SELECT tagname FROM Tags", null);
 
-        Cursor c = db.rawQuery("SELECT tagname FROM Tags", null);
+            //Nos aseguramos de que existe al menos un registro
+            if (c.moveToFirst()) {
+                //Recorremos el cursor hasta que no haya más registros
+                do {
 
-        //Nos aseguramos de que existe al menos un registro
-        if (c.moveToFirst()) {
-            //Recorremos el cursor hasta que no haya más registros
-            do {
+                    tags.add(c.getString(0));
+                    Log.i(TAG, "Tag: " + c.getString(0));
+                } while (c.moveToNext());
+            }
 
-                tags.add(c.getString(0));
-                Log.i(TAG, "Tag: " + c.getString(0));
-            } while (c.moveToNext());
+            c.close();
         }
-
-        c.close();
-
         return tags;
     }
 

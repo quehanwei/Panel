@@ -3,7 +3,7 @@
     android:id="@+id/row_line"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:background="#CFD8DC"
+    android:background="@color/row_color"
     android:measureWithLargestChild="true"
     android:orientation="vertical"
     android:showDividers="middle|beginning|end">
@@ -24,16 +24,7 @@
     </TextView>
 
     <TextView
-        android:id="@+id/msg"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="3dp"
-        android:layout_marginLeft="5dp"
-        android:textSize="15sp">
-    </TextView>
-
-    <TextView
-        android:id="@+id/datetime"
+        android:id="@+id/msg_number"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="right"

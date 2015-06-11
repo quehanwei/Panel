@@ -18,15 +18,21 @@ package org.imdea.panel;
 
 import android.app.AlertDialog;
 import android.app.FragmentManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -41,9 +47,12 @@ import java.util.ArrayList;
 public class showMessages extends FragmentActivity {
 
     public static ListView listv;
+    public static Button send_btn;
+    public static EditText text_field;
     public static ArrayList<BtMessage> messages;
     public static String tag;
     public static ItemAdapter adapter;
+    public static SharedPreferences SP;
     public FragmentManager fm;
 
     public static void refresh() {
@@ -61,10 +70,33 @@ public class showMessages extends FragmentActivity {
         tag = getIntent().getExtras().getString("tag");
         messages = DBHelper.recoverMessagesByTag(Global.db, tag);
         setTitle(tag);
-        listv = (ListView) findViewById(R.id.listViewM);
         fm = getFragmentManager();
         getActionBar().setDisplayHomeAsUpEnabled(true);
         getActionBar().setDisplayShowHomeEnabled(true);
+        SP = PreferenceManager.getDefaultSharedPreferences(this);
+
+        listv = (ListView) findViewById(R.id.listViewM);
+        send_btn = (Button) findViewById(R.id.btnSend);
+        text_field = (EditText) findViewById(R.id.inputMsg);
+
+        send_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String text = text_field.getText().toString();
+                if (!text.isEmpty()) {
+                    BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
+                    item.setTag(tag);
+                    DBHelper.insertMessage(Global.db, item);
+                    text_field.setText("");
+                    TagsFragment.refresh();
+
+                }
+                InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+                refresh();
+            }
+        });
+
         adapter = new ItemAdapter(this, R.layout.row_layout, messages){
             public void onEntrada(Object item, View view) {
                 if (item != null) {
@@ -72,8 +104,8 @@ public class showMessages extends FragmentActivity {
                     text_msg.setText(((BtMessage) item).msg);
                     TextView text_user = (TextView) view.findViewById(R.id.name);
                     text_user.setText(((BtMessage) item).user);
-                    TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    text_datetime.setText(((BtMessage) item).last_date + " " + ((BtMessage) item).last_time);
+                    /*TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
+                    text_datetime.setText(((BtMessage) item).last_date + " " + ((BtMessage) item).last_time);*/
                 }
             }
         };

@@ -6,6 +6,7 @@
         android:icon="@drawable/ic_new_msg"
         android:orderInCategory="100"
         android:showAsAction="always"
-        android:title="@string/action_newMsg" />
+        android:title="@string/action_newMsg"
+        android:visible="false" />
 
 </menu>
