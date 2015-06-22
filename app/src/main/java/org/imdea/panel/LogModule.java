@@ -20,6 +20,18 @@ import java.util.List;
 
 public class LogModule {
 
+
+    /* This app is goign to save a single file indicating
+        DEVID, TIME, TYPE, MSG
+        DEVID is the mac of the device
+        TYPE is the type of message: Location, Wifi networks, discovering results, message transactions...
+        MSG is the different payload the log line may have, for instance:
+            Location = LAT,LON
+            Scan = DEVICE1,DEVICE2,DEVICE3 ...
+            Message = SENDER,RECEIVER,HASH
+            wifinetw = NETWORK1,NETWORK2,NETWORK3...
+     */
+
     final String TAG = "LogModule";
     Context mcontext;
     boolean turnOff = false;
@@ -104,15 +116,7 @@ public class LogModule {
                 }
 
                 if (turnOff) mWifiManager.setWifiEnabled(false);
-
-                /*Log.v(TAG, "Wi-Fi Scan Results ... Count:" + N);
-                for(int i=0; i < N; ++i) {
-                    Log.v(TAG, "  BSSID       =" + results.get(i).BSSID);
-                    Log.v(TAG, "  SSID        =" + results.get(i).SSID);
-                    Log.v(TAG, "  Capabilities=" + results.get(i).capabilities);
-                    Log.v(TAG, "  Frequency   =" + results.get(i).frequency);
-                    Log.v(TAG, "  Level       =" + results.get(i).level);
-                    Log.v(TAG, "---------------");*/
+                mcontext.unregisterReceiver(this);
             }
         }, filter);
 

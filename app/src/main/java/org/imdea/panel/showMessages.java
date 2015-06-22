@@ -84,7 +84,9 @@ public class showMessages extends FragmentActivity {
             public void onClick(View v) {
                 String text = text_field.getText().toString();
                 if (!text.isEmpty()) {
+                    text = text.replace("\n", " ");
                     BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
+                    item.isMine = true;
                     item.setTag(tag);
                     DBHelper.insertMessage(Global.db, item);
                     text_field.setText("");
@@ -97,16 +99,12 @@ public class showMessages extends FragmentActivity {
             }
         });
 
-        adapter = new ItemAdapter(this, R.layout.row_layout, messages){
+        adapter = new ItemAdapter(this, messages) {
             public void onEntrada(Object item, View view) {
-                if (item != null) {
-                    TextView text_msg = (TextView) view.findViewById(R.id.msg);
-                    text_msg.setText(((BtMessage) item).msg);
-                    TextView text_user = (TextView) view.findViewById(R.id.name);
-                    text_user.setText(((BtMessage) item).user);
-                    /*TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    text_datetime.setText(((BtMessage) item).last_date + " " + ((BtMessage) item).last_time);*/
-                }
+                TextView text_msg = (TextView) view.findViewById(R.id.msg);
+                text_msg.setText(((BtMessage) item).msg);
+                TextView text_user = (TextView) view.findViewById(R.id.name);
+                text_user.setText(((BtMessage) item).user);
             }
         };
 

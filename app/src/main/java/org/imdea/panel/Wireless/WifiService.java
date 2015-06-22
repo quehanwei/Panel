@@ -6,8 +6,6 @@ import android.os.IBinder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 
 public class WifiService extends Service {
@@ -15,7 +13,6 @@ public class WifiService extends Service {
     public static List peers = new ArrayList();
     final String TAG = "WifiService";
     WifiModule wmodule;
-    boolean isConnected = false;
 
     public WifiService() {
     }
@@ -24,14 +21,14 @@ public class WifiService extends Service {
 
         wmodule = new WifiModule(this);
         wmodule.start();
-        final Timer myTimer = new Timer();
+        /*final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
                 if(isConnected==false){
                 }
             }
 
-        }, 30000, 90000);
+        }, 30000, 90000);*/
 
         return Service.START_NOT_STICKY;
     }

@@ -30,16 +30,25 @@ import java.util.Date;
 
 public class BtMessage {
 
+    public boolean isImage;
+    public int TTL;
     public String msg;
     public String user;
     public String tag;
+
     public String origin_time;
     public String origin_date;
+
+
     public String last_date;
     public String last_time;
-    public String origin_mac_address;
-    public String last_mac_address;
-    public ArrayList<String> devices;
+
+
+    public String origin_mac_address;   // Device that created the content
+    public String last_mac_address;     // device that forwardede the content
+    public ArrayList<String> devices; // This is a list of MAC address of the devices that return to me the hash isgnature of that message
+
+    public boolean isMine;  // Flag that told me if I generate the content or not without cheking the MAC.
 
     public int hits;
     public boolean isGeneral;
@@ -58,12 +67,15 @@ public class BtMessage {
         this.last_time = origin_time;
         this.devices = new ArrayList<>();
         this.hits = 0;
+        this.isImage = false;
+        this.TTL = 0;
+        this.isMine = false;
 
 
     }
 
     // This Constructor is to recover messages from the SQL Database
-    public BtMessage(String origin_mac, String last_mac, String user, String message, String origin_date, String origin_time, String last_date, String last_time, String devices, int hits) {
+    public BtMessage(String origin_mac, String last_mac, String user, String message, String origin_date, String origin_time, String last_date, String last_time, String devices, int hits, int TTL, int isImage) {
         this.msg = message;
         this.user = user;
         this.isGeneral = true;
@@ -76,6 +88,11 @@ public class BtMessage {
         this.last_time = last_time;
         this.devices = new ArrayList<>();
         this.hits = hits;
+        this.isImage = isImage > 0;
+        this.TTL = TTL;
+        this.isMine = false;
+
+
         String[] macs = devices.replace("[", "").replace("]", "").split(", ");
 
         for (String mac : macs) this.devices.add(mac);
@@ -126,6 +143,18 @@ public class BtMessage {
             Log.e("BtMesssage", "Parsing Error");
 
         }
+        try {
+            this.isImage = json_item.getBoolean("isImage");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.TTL = json_item.getInt("TTL");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
 
         this.last_mac_address = mac_addr;
         this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
@@ -154,11 +183,17 @@ public class BtMessage {
      */
     public boolean isAlreadySent(String addr) {
 
+        if (devices == null) return false;
+
+        if (devices.isEmpty()) return false;
+
+        if (addr.equals(last_mac_address)) return true;
+        if (addr.equals(origin_mac_address)) return true;
+
         for (String dev : devices) {
             if (dev.equals(addr)) return true;
         }
-        if (addr.equals(last_mac_address)) return true;
-        if (addr.equals(origin_mac_address)) return true;
+
         return false;
 
     }
@@ -181,6 +216,8 @@ public class BtMessage {
             object.put("tag", this.tag);
             object.put("date", this.origin_date);
             object.put("time", this.origin_time);
+            object.put("TTL", this.TTL);
+            object.put("isImage", this.isImage);
 
         } catch (JSONException e) {
             e.printStackTrace();

@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pGroup;
@@ -23,7 +22,6 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
         WifiP2pManager.PeerListListener {
 
 
-    public static List peers = new ArrayList();
     final int SERVER_PORT = 4576;
     final String TAG = "WifiModule";
     WifiP2pManager mManager;
@@ -32,6 +30,8 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
     WifiP2pManager.Channel mChannel;
     String my_MAC;
     Context context;
+    private List Listpeers = new ArrayList();
+
 
     WifiModule(Context context) {
         this.context = context;
@@ -40,17 +40,14 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
     public void start() {
 
         Log.i(TAG, "Starting Wifi Module");
-        setIsWifiP2pEnabled(true);
+        //setIsWifiP2pEnabled(true);
 
         mIntentFilter = new IntentFilter();
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
-
-        WifiManager wMan = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-        my_MAC = wMan.getConnectionInfo().getMacAddress();
-        Log.i(TAG, "MAC " + my_MAC);
+        mIntentFilter.addAction(WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION);
 
         mManager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
         mChannel = mManager.initialize(context, context.getMainLooper(), this);
@@ -65,13 +62,13 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
 
     @Override
     public void onChannelDisconnected() {
-        Log.w(TAG, "CMGR: Channel disconnected ");
+        Log.w(TAG, "Channel disconnected ");
 
     }
 
     @Override
     public void onFailure(int reason) {
-        String text = "Failure: ";
+        String text = "Scanning Failure: ";
         switch (reason) {
             case WifiP2pManager.P2P_UNSUPPORTED:
                 text = text + " unsupported";
@@ -89,7 +86,7 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
 
     @Override
     public void onSuccess() {
-        Log.i(TAG, "Success");
+        Log.i(TAG, "Scanning started Successfully");
     }
 
     @Override
@@ -100,6 +97,19 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
         String action = intent.getAction();
 
         switch (action) {
+            case WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION:
+                int discoveryState = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, 0);
+                switch (discoveryState) {
+                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED:
+                        Log.i(TAG, "DISCOVERY STATE STARTED");
+                        break;
+                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED:
+                        Log.i(TAG, "DISCOVERY STATE STOPPED");
+                        //mManager.requestPeers(mChannel,this);
+                        break;
+                }
+                break;
+
             case WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION:          //thrown after a success full discoverPeers call
                 //get the peer list via the onPeersChanged callback
                 Log.i(TAG, "Received peers-changed-action");
@@ -126,7 +136,7 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
                 if (state == WifiP2pManager.WIFI_P2P_STATE_DISABLED) {
                     Log.i(TAG, "WIFI_p2p_DISABLED");
 
-                    setIsWifiP2pEnabled(true);
+                    //setIsWifiP2pEnabled(true);
                 } else {
                     Log.i(TAG, "WIFI_p2p_ENABLED");
 
@@ -134,8 +144,9 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
                 break;
 
             case WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION:                //thrown when device's general settings change?	
-                Log.i(TAG, "Received device-changed-action");
-
+                Log.i(TAG, "Received this-device-changed-action");
+                WifiP2pDevice this_device = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
+                if (this_device != null) Log.i(TAG, "Status: " + this_device.toString());
                 //thrown every x seconds by the scan alarm we setup during initialization
 
 
@@ -146,33 +157,43 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
     @Override
     public void onPeersAvailable(WifiP2pDeviceList peers) {
         Log.i(TAG, "PEERS:");
-        for (WifiP2pDevice device : peers.getDeviceList()) {
-            Log.i(TAG, "  ->" + device.toString());
+
+        Listpeers.clear();
+        Listpeers.addAll(peers.getDeviceList());
+
+        if (Listpeers.size() == 0) {
+            Log.d(TAG, "No devices found");
+            return;
+        } else {
+            for (Object device : Listpeers) {
+                Log.i(TAG, "  ->" + device.toString());
+            }
         }
     }
 
     @Override
     public void onConnectionInfoAvailable(WifiP2pInfo info) {
         //here check whether we're the group owner, then create server socket if so
-
+        Log.i(TAG, "ConnectionInfo: " + info.toString());
     }
 
     @Override
     public void onGroupInfoAvailable(WifiP2pGroup group) {
-        Log.i(TAG, "CMGR: Group info available: " + group.toString());
+        Log.i(TAG, "Group info available: " + group.toString());
 
     }
 
+    /*
     public void setIsWifiP2pEnabled(boolean opt) {
         if (opt) {
-            final WifiManager mWifi = (WifiManager) context.getSystemService(context.WIFI_SERVICE);
+            final WifiPManager mWifi = (WifiManager) context.getSystemService(context.WIFI_SERVICE);
             mWifi.setWifiEnabled(true);
             Log.w(TAG, "Wifi is ON");
         } else {
             Log.i(TAG, "Wifi is OFF");
 
         }
-    }
+    }*/
 
     public void discover() {
         Log.i(TAG, "Starting discovery");

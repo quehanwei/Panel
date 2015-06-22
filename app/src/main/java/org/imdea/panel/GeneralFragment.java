@@ -61,10 +61,26 @@ public class GeneralFragment extends Fragment {
     }
 
     public static void refresh() {
-        messages.clear();
-        messages.addAll(DBHelper.recoverMessages(Global.db));
+        if (messages != null) {
+            messages.clear();
+            messages.addAll(DBHelper.recoverMessages(Global.db));
+
+        }
         adapter.notifyDataSetChanged();
 
+    }
+
+    public static boolean isBlank(String str) {
+        int strLen;
+        if (str == null || (strLen = str.length()) == 0) {
+            return true;
+        }
+        for (int i = 0; i < strLen; i++) {
+            if ((Character.isWhitespace(str.charAt(i)) == false)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void onCreate(Bundle savedInstanceState) {
@@ -91,38 +107,30 @@ public class GeneralFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 String text = text_field.getText().toString();
-                if (!text.isEmpty()) {
-                    BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
-                    DBHelper.insertMessage(Global.db, item);
-                    text_field.setText("");
-                }
+                text = text.replace("\n", " ");
+
+                if (text.isEmpty()) return;
+                if (isBlank(text)) return;
+
+                BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
+                item.isMine = true;
+
+                DBHelper.insertMessage(Global.db, item);
+                text_field.setText("");
+
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+
                 refresh();
             }
         });
-        adapter = new ItemAdapter(getActivity(), R.layout.row_layout, messages) {
-
+        adapter = new ItemAdapter(getActivity(), messages) {
             public void onEntrada(Object item, View view) {
-                if (item != null) {
-                    // Changen the colour to easily know the differences between your messages and my messages
-
-                    //Log.i(TAG,"New Item " + item.toString());
-                    TextView text_msg = (TextView) view.findViewById(R.id.msg);
-                    text_msg.setText(((BtMessage) item).msg);
-                    TextView text_user = (TextView) view.findViewById(R.id.name);
-                    text_user.setText(((BtMessage) item).user);
-                    /*TextView text_datetime = (TextView) view.findViewById(R.id.datetime);
-                    if (((BtMessage) item).last_date.equals(new SimpleDateFormat("MM.dd.yyyy").format(new Date())))
-                        text_datetime.setText("Today at " + ((BtMessage) item).last_time);
-                    else{
-                        text_datetime.setText(((BtMessage) item).last_date + " at " + ((BtMessage) item).last_time);
-                    }*/
-
-                }
+                TextView text_msg = (TextView) view.findViewById(R.id.msg);
+                text_msg.setText(((BtMessage) item).msg);
+                TextView text_user = (TextView) view.findViewById(R.id.name);
+                text_user.setText(((BtMessage) item).user);
             }
-
-
         };
 
         listv.setAdapter(adapter);

@@ -55,9 +55,9 @@ public class BtModule {
     Method listenChannel;
     Method createChannel;
     boolean channelFixed = true;
-    private AcceptThread mInsecureAcceptThread;
-    private ConnectThread mConnectThread;
-    private ConnectedThread mConnectedThread;
+    AcceptThread mInsecureAcceptThread;
+    ConnectThread mConnectThread;
+    ConnectedThread mConnectedThread;
     private int mState;
 
     /**
@@ -264,10 +264,10 @@ public class BtModule {
         //mHandler.sendMessage(msg);
 
         Log.e(TAG, "Unable to connect device (ConnectionThread)");
-        mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED));
+        mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED + 1));
         setState(Global.CONECTION_FAILED);
         // Start the service over to restart listening mode
-        BtModule.this.start();
+        //BtModule.this.start();
     }
 
     /**
@@ -284,7 +284,7 @@ public class BtModule {
         //mHandler.sendMessage(msg);
 
         // Start the service over to restart listening mode
-        BtModule.this.start();
+        //BtModule.this.start();
     }
 
     /**
@@ -325,7 +325,7 @@ public class BtModule {
                     // This is a blocking call and will only return on a successful connection or an exception
                     socket = mmServerSocket.accept();
                 } catch (IOException e) {
-                    Log.e(TAG, "Accept() failed");
+                    Log.e(TAG, "Accept() failed", e);
                     break;
                 }
 
@@ -359,6 +359,7 @@ public class BtModule {
             Log.d(TAG, "Socket cancel " + this);
             try {
                 mmServerSocket.close();
+
             } catch (IOException e) {
                 Log.e(TAG, "Socket close() of server failed", e);
             }
@@ -481,7 +482,7 @@ public class BtModule {
                     Log.e(TAG, "Disconnected", e);
                     connectionLost();
                     // Start the service over to restart listening mode
-                    BtModule.this.start();
+                    //BtModule.this.start();
                     break;
                 }
 
@@ -513,15 +514,16 @@ public class BtModule {
                 Thread.sleep(1000);
             } catch (Exception e) {
             }
-
             cancel();
         }
 
         public void cancel() {
             try {
+                mmInStream.close();
+                mmOutStream.close();
                 mmSocket.close();
             } catch (IOException e) {
-                Log.e(TAG, "close() of connect socket failed", e);
+                Log.e(TAG, "Close() of connect socket failed", e);
             }
         }
     }

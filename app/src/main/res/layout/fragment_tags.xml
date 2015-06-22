@@ -1,11 +1,15 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" android:layout_width="fill_parent"
-    android:layout_height="fill_parent" tools:context="org.imdea.panel.TagsFragment">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="@drawable/background"
+    tools:context="org.imdea.panel.TagsFragment">
 
     <ListView
+        android:id="@+id/listViewT"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        android:id="@+id/listViewT"
         android:layout_gravity="left|top"
-        android:choiceMode="singleChoice" />
+        android:choiceMode="singleChoice"
+        android:transcriptMode="alwaysScroll" />
 </FrameLayout>

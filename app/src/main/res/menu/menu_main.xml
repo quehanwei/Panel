@@ -6,17 +6,18 @@
     >
 
     <!-- android:icon="@android:drawable/ic_menu_add"-->
-
+    <!--
     <item
         android:id="@+id/action_newMsg"
         android:icon="@drawable/ic_new_msg"
         android:orderInCategory="100"
         android:showAsAction="ifRoom"
         android:title="@string/action_newMsg"
-        android:visible="false" />
+        android:visible="false" /> -->
 
     <item
         android:id="@+id/action_newGrp"
+        android:icon="@drawable/ic_new_msg"
         android:orderInCategory="100"
         android:title="@string/action_newGrp"
         app:showAsAction="ifRoom"
@@ -26,7 +27,6 @@
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="@string/action_settings"
-
         app:showAsAction="never" />
 
     <item

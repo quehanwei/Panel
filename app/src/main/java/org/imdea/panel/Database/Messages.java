@@ -26,12 +26,6 @@ public class Messages {
         return messages_selected;
     }
 
-    public static JSONArray createTagList(ArrayList<String> tags) {
-        JSONArray my_array = new JSONArray();
-        for (String tag : tags) my_array.put(tag);
-        return my_array;
-    }
-
     public static String createMessage(JSONArray messages, JSONArray hashes) {
 
         //if (messages == null) if (hashes == null) return null;

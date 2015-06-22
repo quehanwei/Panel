@@ -7,11 +7,12 @@
         <item name="android:divider">@null</item>
         <item name="android:actionBarDivider">@null</item>
         <item name="android:fontFamily">sans-serif-light</item>
+
     </style>
 
     <!-- ActionBar styles -->
     <style name="MyActionBar" parent="@android:style/Widget.Holo.Light.ActionBar.Solid.Inverse">
-        <item name="android:background">@color/tab_unselected</item>
+        <item name="android:background">@color/color_primary</item>
         <item name="android:logo">@android:color/transparent</item>
     </style>
 
@@ -30,18 +31,18 @@
 
     <!-- ActionBar tabs text -->
     <style name="MyActionBarTabText" parent="@style/Widget.AppCompat.ActionBar.TabText">
-        <item name="android:textColor">@color/actionbar_text</item>
+        <item name="android:textColor">@color/textColorPrimary</item>
         <!-- The textColor property is backward compatible with the Support Library -->
     </style>
 
 
     <!--
     <color name="tab_selected">#ffc02527</color>
-    <color name="tab_unselected">#ffdc2a2c</color>
+    <color name="color_primary">#ffdc2a2c</color>
     <color name="tab_pressed">#ffff2f31</color>
     <color name="msg_color">#fff89187</color>
     <color name="row_color">#ffffd1b7</color>
-    <color name="actionbar_text">#FFFFFF</color>
+    <color name="textColorPrimary">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="grey">#44282828</color>
     <color name="softgrey">#44999999</color> -->
@@ -49,10 +50,10 @@
 
     <color name="tab_selected">#ff026fb4</color>
     <color name="msg_color">#ff2e9fd1</color>
-    <color name="tab_unselected">#ff03a1dc</color>
+    <color name="color_primary">#ff03a1dc</color>
     <color name="tab_pressed">#80DEEA</color>
     <color name="row_color">#44999999</color>
-    <color name="actionbar_text">#FFFFFF</color>
+    <color name="textColorPrimary">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="grey">#44282828</color>
     <color name="softgrey">#44999999</color>

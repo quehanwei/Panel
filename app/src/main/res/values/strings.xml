@@ -24,4 +24,5 @@
     <string name="hash_string">Hash:</string>
     <string name="size_string">Size:</string>
     <string name="send_string">Send</string>
+    <string name="image_id">Image</string>
 </resources>

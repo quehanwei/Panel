@@ -12,6 +12,9 @@ public class Global {
     public static final int MESSAGE_TOAST = 8;
     public static final int CONECTION_FAILED = 9;
 
+    public static int refresh_freq = 0;
+    public static int max_send_n = 0;
+
     public static SQLiteDatabase db;
 
     public static String DEVICE_NAME = "";

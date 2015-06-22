@@ -68,7 +68,7 @@ public class TagsFragment extends Fragment {
 
         listv = (ListView) rootView.findViewById(R.id.listViewT);
 
-        adapter = new ItemAdapter(getActivity(), R.layout.row_layout, tags){
+        adapter = new ItemAdapter(getActivity(), tags) {
             @Override
             public void onEntrada(Object item, View view) {
                 if (item != null) {

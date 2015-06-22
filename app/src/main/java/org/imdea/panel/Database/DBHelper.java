@@ -26,28 +26,10 @@ import android.util.Log;
 
 import java.util.ArrayList;
 
-/**
- * This class does all the work with the messages database:
- *
- * newTag
- * TagExists
- * insertMessage
- * RecoverMessagesByTag
- * RecoverMessages
- * getTags
- * getNumberOfEntriesByTag
- * deleteTag
- * deleteMessage
- *
- */
-
-/* TODO
-    Avoid sql Injection attacks -- > Process strings with special characters
-
- */
 public class DBHelper extends SQLiteOpenHelper {
 
     private static final String TAG = "DBHelper";
+    public static String datafields = "origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits, TTL, isImage, isMine";
 
     public DBHelper(Context contexto, String nombre, SQLiteDatabase.CursorFactory factory, int version) {
 
@@ -57,7 +39,7 @@ public class DBHelper extends SQLiteOpenHelper {
 
     public static void newTag(SQLiteDatabase db, String tagname) {
         Log.i(TAG, "newTag : " + tagname);
-        db.execSQL("CREATE TABLE " + tagname + "(origin_mac TEXT,last_mac TEXT, user TEXT,message TEXT,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER)");
+        db.execSQL("CREATE TABLE " + tagname + "(origin_mac TEXT,last_mac TEXT, user TEXT,message BLOB,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER,TTL INTEGER,isImage INTEGER,isMine INTEGER)");
         db.execSQL("INSERT INTO Tags(tagname) VALUES ('" + tagname + "')");
     }
 
@@ -79,7 +61,7 @@ public class DBHelper extends SQLiteOpenHelper {
         String s;
         SQLiteStatement insertStatement;
         if (item.isGeneral) {
-            s = "INSERT INTO Messages(origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits) VALUES (?,?,?,?,?,?,?,?,?,?) ";
+            s = "INSERT INTO Messages(" + datafields + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ";
             insertStatement = db.compileStatement(s);
             insertStatement.bindString(1, item.origin_mac_address);
             insertStatement.bindString(2, item.last_mac_address);
@@ -91,11 +73,15 @@ public class DBHelper extends SQLiteOpenHelper {
             insertStatement.bindString(8, item.last_time);
             insertStatement.bindString(9, "");          //Empty device List
             insertStatement.bindString(10, "0");
+            insertStatement.bindString(11, String.valueOf(item.TTL));
+            insertStatement.bindString(12, String.valueOf(item.isImage ? 1 : 0));
+            insertStatement.bindString(13, String.valueOf(item.isMine ? 1 : 0));
+
         } else {
             // If the tag does not exists, create the tag
             if (!existTag(db, item.tag)) newTag(db, item.tag);
 
-            s = "INSERT INTO " + item.tag + "(origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits) VALUES (?,?,?,?,?,?,?,?,?,?) ";
+            s = "INSERT INTO " + item.tag + "(" + datafields + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ";
             insertStatement = db.compileStatement(s);
             insertStatement.bindString(1, item.origin_mac_address);
             insertStatement.bindString(2, item.last_mac_address);
@@ -107,6 +93,9 @@ public class DBHelper extends SQLiteOpenHelper {
             insertStatement.bindString(8, item.last_time);
             insertStatement.bindString(9, "");          //Empty device List
             insertStatement.bindString(10, "0");
+            insertStatement.bindString(11, String.valueOf(item.TTL));
+            insertStatement.bindString(12, String.valueOf(item.isImage ? 1 : 0));
+            insertStatement.bindString(13, String.valueOf(item.isMine ? 1 : 0));
             Log.i(TAG, "insertMessage " + insertStatement.toString());
 
         }
@@ -122,20 +111,76 @@ public class DBHelper extends SQLiteOpenHelper {
         ArrayList<BtMessage> messages = new ArrayList<>();
         //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
 
-        Cursor c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM " + Tag, null);
+        Cursor c = db.rawQuery("SELECT " + datafields + " FROM " + Tag, null);
 
         if (c.moveToFirst()) {
             do {
                 // We use the constructor String mac,String msg,String user,String time,String date
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
+                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                item.isMine = (c.getInt(12) != 0);
                 item.setTag(Tag);   // Now we add the Tag
                 messages.add(item);
-                Log.i(TAG,"RecoverMessagesByTag "+ item.toString());
+                //Log.i(TAG,"RecoverMessagesByTag "+ item.toString());
             } while (c.moveToNext());
         }
         c.close();
         return messages;
     }
+
+    public static ArrayList recoverLiveMessages(SQLiteDatabase db, int max) {
+        ArrayList<BtMessage> messages = new ArrayList<>();
+        Cursor c;
+
+        c = db.rawQuery("SELECT " + datafields + " FROM Messages WHERE hits<" + String.valueOf(max), null);
+        if (c.moveToFirst()) {
+            do {
+
+                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                item.isMine = (c.getInt(12) != 0);
+                messages.add(item);
+                //Log.i(TAG,"RecoverMessages: " + item.toString());
+            } while (c.moveToNext());
+        }
+        c.close();
+
+        ArrayList<String> tags = getTags(db);
+        for (Object tag : tags) {
+            c = db.rawQuery("SELECT " + datafields + " FROM " + tag + " WHERE hits<" + String.valueOf(max), null);
+
+            if (c.moveToFirst()) {
+                do {
+                    // We use the constructor String mac,String msg,String user,String time,String date
+                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                    item.isMine = (c.getInt(13) != 0);
+                    item.setTag(tag.toString());   // Now we add the Tag
+                    messages.add(item);
+                } while (c.moveToNext());
+            }
+            c.close();
+        }
+
+        return messages;
+    }
+
+    public static ArrayList recoverMessages(SQLiteDatabase db) {
+        ArrayList<BtMessage> messages;
+        messages = new ArrayList<>();
+        //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
+
+        Cursor c = db.rawQuery("SELECT " + datafields + " FROM Messages", null);
+        if (c.moveToFirst()) {
+            do {
+
+                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                item.isMine = (c.getInt(12) != 0);
+                messages.add(item);
+                //Log.i(TAG, "RecoverMessages: " + item.toString());
+            } while (c.moveToNext());
+        }
+        c.close();
+        return messages;
+    }
+
 
     public static Boolean isNew(SQLiteDatabase db, BtMessage item){
         ArrayList<BtMessage> messages;
@@ -165,6 +210,21 @@ public class DBHelper extends SQLiteOpenHelper {
             db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
         } else {
             db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+        }
+
+    }
+
+    public static void updateUsername(SQLiteDatabase db, String old_username, String new_username) {
+
+        ContentValues newValues = new ContentValues();
+        newValues.put("user", new_username); //These Fields should be your String values of actual column names
+        String[] whereArgs = {old_username};
+
+        db.update("Messages", newValues, "user=?", whereArgs);
+        ArrayList<String> tags = getTags(db);
+
+        for (String tag : tags) {
+            db.update(tag, newValues, "user=?", whereArgs);
         }
 
     }
@@ -203,23 +263,7 @@ public class DBHelper extends SQLiteOpenHelper {
 
     }
 
-    public static ArrayList recoverMessages(SQLiteDatabase db) {
-        ArrayList<BtMessage> messages;
-        messages = new ArrayList<>();
-        //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
 
-        Cursor c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM Messages", null);
-        if (c.moveToFirst()) {
-            do {
-
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
-                messages.add(item);
-                Log.i(TAG, "RecoverMessages: " + item.toString());
-            } while (c.moveToNext());
-        }
-        c.close();
-        return messages;
-    }
 
     public static ArrayList getTags(SQLiteDatabase db) {
         // SELECT hastag FROM Messages WHERE hastag!='NONE'
@@ -241,6 +285,7 @@ public class DBHelper extends SQLiteOpenHelper {
         }
         return tags;
     }
+
 
     public static int getNumberOfEntriesByTag(SQLiteDatabase db,String tag){
         Cursor c = db.rawQuery("SELECT COUNT(origin_mac) FROM " + tag, null);
@@ -266,11 +311,12 @@ public class DBHelper extends SQLiteOpenHelper {
 
         Cursor c;
 
-        c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM Messages", null);
+        c = db.rawQuery("SELECT " + datafields + " FROM Messages", null);
         if (c.moveToFirst()) {
             do {
 
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
+                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                item.isMine = (c.getInt(12) != 0);
                 if (item.toHash().equals(hash)) {
                     return item;
                 }
@@ -281,12 +327,13 @@ public class DBHelper extends SQLiteOpenHelper {
 
         ArrayList<String> tags = getTags(db);
         for (Object tag : tags) {
-            c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM " + tag, null);
+            c = db.rawQuery("SELECT " + datafields + " FROM " + tag, null);
 
             if (c.moveToFirst()) {
                 do {
                     // We use the constructor String mac,String msg,String user,String time,String date
-                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
+                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                    item.isMine = (c.getInt(12) != 0);
                     item.setTag(tag.toString());   // Now we add the Tag
                     if (item.toHash().equals(hash)) {
                         return item;
@@ -327,43 +374,10 @@ public class DBHelper extends SQLiteOpenHelper {
         }
     }
 
-    public static ArrayList recoverLiveMessages(SQLiteDatabase db, int max) {
-        ArrayList<BtMessage> messages = new ArrayList<>();
-        Cursor c;
-
-        c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM Messages WHERE hits<" + String.valueOf(max), null);
-        if (c.moveToFirst()) {
-            do {
-
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
-                messages.add(item);
-                //Log.i(TAG,"RecoverMessages: " + item.toString());
-            } while (c.moveToNext());
-        }
-        c.close();
-
-        ArrayList<String> tags = getTags(db);
-        for (Object tag : tags) {
-            c = db.rawQuery("SELECT origin_mac, last_mac, user, message, origin_date, origin_time, last_date, last_time, devices, hits FROM " + tag + " WHERE hits<" + String.valueOf(max), null);
-
-            if (c.moveToFirst()) {
-                do {
-                    // We use the constructor String mac,String msg,String user,String time,String date
-                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9));
-                    item.setTag(tag.toString());   // Now we add the Tag
-                    messages.add(item);
-                } while (c.moveToNext());
-            }
-            c.close();
-        }
-
-        return messages;
-    }
-
     public void onCreate(SQLiteDatabase db) {
         //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
         db.execSQL("CREATE TABLE Tags(tagname TEXT)");
-        db.execSQL("CREATE TABLE Messages(origin_mac TEXT,last_mac TEXT, user TEXT,message TEXT,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER)");
+        db.execSQL("CREATE TABLE Messages(origin_mac TEXT,last_mac TEXT, user TEXT,message BLOB,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER,TTL INTEGER,isImage INTEGER,isMine INTEGER)");
     }
 
     public void onUpgrade(SQLiteDatabase db, int versionAnterior, int versionNueva) {
@@ -374,7 +388,7 @@ public class DBHelper extends SQLiteOpenHelper {
         //And create a new one
         //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
         db.execSQL("CREATE TABLE Tags(tagname TEXT)");
-        db.execSQL("CREATE TABLE Messages(origin_mac TEXT,last_mac TEXT, user TEXT,message TEXT,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER)");
+        db.execSQL("CREATE TABLE Messages(origin_mac TEXT,last_mac TEXT, user TEXT,message TEXT,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER,TTL INTEGER,isImage INTEGER,isMine INTEGER)");
     }
 
 }

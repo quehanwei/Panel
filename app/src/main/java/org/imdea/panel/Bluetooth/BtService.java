@@ -32,12 +32,6 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/* TODO
-        -> Send message confirmation
-        -> Assure that the same message is not send to the same device twice
-        -> Fix the Outdated error
-
- */
 public class BtService extends Service {
 
     public static SQLiteDatabase db;
@@ -49,7 +43,52 @@ public class BtService extends Service {
     LogModule nLog = null;
     String currentDevice = "";
     int n_connection = 0;
+    boolean answering = true;
+    int nodevices = 0;
     private String TAG = "BtService";
+    private boolean busy = false;
+    private boolean force_keepgoing = false;
+    private ConnectionManager ConnectionThread = null;
+    final BroadcastReceiver bReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+
+            String action = intent.getAction();
+
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {              // When discovery finds a device
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);                   // Get the BluetoothDevice object from the Intent
+                if (isNew(device.getAddress(), devices))
+                    devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
+            }
+
+            if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+                mAdapter.cancelDiscovery();
+                if (devices.isEmpty()) {
+                    Log.i(TAG, "Discovery Finished: No Devices");
+                    nodevices++;
+                    if (nodevices == 3) resetBt();
+                } else {
+                    nodevices = 0;
+                    Log.i(TAG, "Discovery Finished: " + devices.toString());
+                    /*if (ConnectionThread == null || !ConnectionThread.isAlive()) {
+                        Log.i(TAG, "Starting Synchronization");
+                        ConnectionThread = new ConnectionManager();
+                        ConnectionThread.start();
+                    }*/
+                    nLog.writeToLog("PanelLog", "BLUETOOTH", devices.toString());
+                    if (n_connection % 5 == 0) {
+                        nLog.getWifi();
+                        //nLog.getLocation();
+                    }
+
+                    if (ConnectionThread != null) ConnectionThread.cancel();
+                    ConnectionThread = null;
+                    ConnectionThread = new ConnectionManager();
+                    ConnectionThread.start();
+                }
+            }
+        }
+    };
+    private BtModule mChatService = null;
     /**
      * The Handler that gets information back from the BtModule
      */
@@ -75,25 +114,41 @@ public class BtService extends Service {
 
                             break;
                         case BtModule.STATE_NONE:
-                            intent.putExtra("STATUS", "Panel");
+                            intent.putExtra("STATUS", "Idle");
                             sendBroadcast(intent); // Now we warn the app that we received a new message
 
                             break;
                     }
                     break;
+
                 case Global.MESSAGE_WRITE:
-                    //byte[] writeBuf = (byte[]) msg.obj;
-                    // construct a string from the buffer
-                    //String writeMessage = new String(writeBuf);
                     break;
                 case Global.MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
                     String readMessage = new String(readBuf, 0, msg.arg1);                      // construct a string from the valid bytes in the buffer
-                    Log.w(TAG, "RECEIVED: " + readMessage);
+                    //Log.w(TAG, "RECEIVED: " + readMessage);
 
-                    parseMessages(readMessage); // We decrypt the message and insert it into the database
+                    //parseMessages(readMessage); // We decrypt the message and insert it into the database
 
-                    sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
+                    // First we parse the messages the device sent to us
+                    JSONObject obj = receiveObject(readMessage);
+                    ArrayList<BtMessage> new_msgs = receiveMessages(obj);
+                    ArrayList<String> new_hashes = receiveHashes(obj);
+
+                    // If we are answering, we create the answer and send it.
+                    if (answering) {
+
+                        String s = createMessage(createMessageList(currentDevice), createHashList(new_msgs));
+                        send_Message(s);
+                        answering = false;
+
+                    }
+
+                    // After all of this, we update our list withe the new messages
+                    parseInfo(new_msgs, new_hashes);
+
+                    mChatService.stop();
+
                     break;
                 case Global.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
@@ -107,44 +162,6 @@ public class BtService extends Service {
             }
         }
     };
-    private boolean busy = false;
-    private boolean force_keepgoing = false;
-    private ConnectionManager ConnectionThread = null;
-    private BtModule mChatService = null;
-    final BroadcastReceiver bReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {              // When discovery finds a device
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);                   // Get the BluetoothDevice object from the Intent
-                if (isNew(device.getAddress(), devices))
-                    devices.add(device.getAddress());   // add the name and the MAC address of the object to the arrayAdapter
-            }
-
-            if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                mAdapter.cancelDiscovery();
-                if (devices.isEmpty()) {
-                    Log.i(TAG, "Discovery Finished: No Devices");
-                } else {
-                    Log.i(TAG, "Discovery Finished: " + devices.toString());
-                    /*if (ConnectionThread == null || !ConnectionThread.isAlive()) {
-                        Log.i(TAG, "Starting Synchronization");
-                        ConnectionThread = new ConnectionManager();
-                        ConnectionThread.start();
-                    }*/
-                    nLog.writeToLog("PanelLog", "BLUETOOTH", devices.toString());
-                    if (n_connection % 2 == 0) {
-                        nLog.getWifi();
-                        //nLog.getLocation();
-                    }
-
-                    if (ConnectionThread != null) ConnectionThread.cancel();
-                    ConnectionThread = null;
-                    ConnectionThread = new ConnectionManager();
-                    ConnectionThread.start();
-                }
-            }
-        }
-    };
 
     public BtService() {
     }
@@ -155,13 +172,15 @@ public class BtService extends Service {
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         Global.DEVICE_ADDRESS = mAdapter.getAddress();
+
+        // Iniciamos el modulo bluetooth en modo escucha
         mChatService = new BtModule(context, mHandler);
         mChatService.start();
 
-        final int refresh_freq = Integer.parseInt(SP.getString("sync_frequency", "60"));
-        final int max_send_n = Integer.parseInt(SP.getString("ttl_opt", "300"));
+        Global.refresh_freq = Integer.parseInt(SP.getString("sync_frequency", "60"));
+        Global.max_send_n = Integer.parseInt(SP.getString("ttl_opt", "300"));
 
-        messages = DBHelper.recoverLiveMessages(Global.db, max_send_n);
+        messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
 
         registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
@@ -178,22 +197,16 @@ public class BtService extends Service {
 
         nLog = new LogModule(this);
 
-        Log.i(TAG, "Refresh Freq set to: " + SP.getString("sync_frequency", "60") + " " + refresh_freq);
-        Log.i(TAG, "Max Resend Number set to: " + SP.getString("ttl_opt", "300") + " " + max_send_n);
+        Log.i(TAG, "Refresh Freq set to: " + Global.refresh_freq);
+        Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
 
         final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
 
-                //Clean outdated messages
-                //CleanOutdated();
-                // If the queue is not empty AND there is some message pending AND the system is not busy
+                messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
 
                 Log.i(TAG, messages.size() + " " + String.valueOf(busy));
-
-                checkLive(max_send_n);
-
-                messages = DBHelper.recoverLiveMessages(Global.db, max_send_n);
 
                 if (messages != null & messages.size() > 0) {
                     if (!busy) startDiscovery();  //If it is not busy, start
@@ -215,43 +228,59 @@ public class BtService extends Service {
 
             }
 
-        }, 30000, refresh_freq * 1000);
+        }, 30000, Global.refresh_freq * 1000);
 
         return Service.START_NOT_STICKY;
     }
 
-    public void checkLive(int max) {
-        for (BtMessage msg : messages) {
-            if (msg.hits > max) {
-                Log.w(TAG, "OUT OF DATE " + msg.toString());
-                messages.remove(msg);
-            }
-        }
-    }
-
     public void startDiscovery() {
+
         if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
         if (devices != null) devices.clear();
-        //if (isEmpty()) return;
         mAdapter.startDiscovery();
         Log.i(TAG, "Starting Discovery");
 
         // This timer assures that the process finish (even if there are some strange error)
+
         final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
                 if (mAdapter.isDiscovering()) {
                     Log.i(TAG, "Discovering Time Exceeded");
-                    mAdapter.cancelDiscovery();
-                    mAdapter.disable();
-                    mAdapter.enable();
-                    startDiscovery();
+
+                    resetBt();
+                    //startDiscovery();
                     myTimer.cancel();
                 }
             }
 
         }, 30000);
 
+    }
+
+    @Override
+    public boolean stopService(Intent name) {
+        mAdapter.cancelDiscovery();
+        mChatService.stop();
+        mAdapter.disable();
+        return super.stopService(name);
+    }
+
+    public void resetBt() {
+        busy = true;
+        mAdapter.cancelDiscovery();
+        while (mAdapter.isDiscovering()) {
+
+        }
+        mAdapter.disable();
+        while (mAdapter.isEnabled()) {
+
+        }
+        mAdapter.enable();
+        while (!mAdapter.isEnabled()) {
+
+        }
+        busy = false;
     }
 
     public void showNotification(String title, String msg) {
@@ -301,41 +330,8 @@ public class BtService extends Service {
         return true;
     }
 
-    /*
-    private JSONArray prepareHashes(String mac_addr) {
-
-        JSONArray my_array = new JSONArray();
-        for (String hash : hashmap) {
-            my_array.put(hash);
-        }
-        return my_array;
-
-    }*/
-
-    /*
-    private String prepareMessage() {
-
-        JSONArray my_array = new JSONArray();
-        for (BtMessage message : messages) {
-            message.updateHits();
-            my_array.put(message.toJson());
-        }
-
-        JSONObject item = new JSONObject();
-        try {
-            item.put("MESSAGES", my_array);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        /*try {
-           item.put("HASH", prepareHashes());
-        }catch(Exception e){
-        }
-        return item.toString();
-    } */
-
     private void send_Message(String message) {
-        Log.w(TAG, "SEND: " + message);
+        //Log.w(TAG, "SEND: " + message);
         if (message.length() > 0) {         // Check that there's actually something to send
             byte[] send = message.getBytes();     // Get the message bytes and tell the BtModule to write
             mChatService.write(send);
@@ -363,11 +359,6 @@ public class BtService extends Service {
         return Success;
     }
 
-
-    public synchronized void addToList(BtMessage item) {
-        messages.add(item);
-    }
-
     public synchronized void updateMessage(BtMessage item) {
         for (BtMessage msg : messages) {
             if (item.toHash().equals(msg.toHash())) {
@@ -377,6 +368,92 @@ public class BtService extends Service {
         }
     }
 
+    public ArrayList receiveMessages(JSONObject json_wrapper) {
+        JSONArray json_message_list;
+        ArrayList<BtMessage> temporalList = new ArrayList<>();
+
+        try {
+
+            json_message_list = json_wrapper.getJSONArray("MESSAGES");              // Getting JSON Array node
+
+            for (int x = 0; x < json_message_list.length(); x++) {
+
+                JSONObject json_object = json_message_list.getJSONObject(x);
+                BtMessage item = new BtMessage(json_object, currentDevice);
+                Log.w(TAG, "PARSED: " + item.toString());
+                item.updateHits();
+                temporalList.add(item);   // Add it to the sendlist
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Impossible to parse JsonArray Messages", e);
+        }
+
+        return temporalList;
+    }
+
+    public JSONObject receiveObject(String message) {
+        JSONObject json_wrapper = null;
+        try {
+            json_wrapper = new JSONObject(message);
+        } catch (Exception e) {
+            Log.e(TAG, "Impossible to parse JSONObject", e);
+        }
+
+        return json_wrapper;
+    }
+
+    public ArrayList receiveHashes(JSONObject json_wrapper) {
+        JSONArray json_message_list;
+        ArrayList<String> temporalHash = new ArrayList();
+
+        ArrayList<BtMessage> temporalList = new ArrayList<>();
+
+        try {
+
+            json_message_list = json_wrapper.getJSONArray("HASH");              // Getting JSON Array node
+
+            BtMessage item;
+
+            for (int x = 0; x < json_message_list.length(); x++) {
+                String hash = json_message_list.get(x).toString();
+                Log.i(TAG, "HASH: " + hash);
+                temporalHash.add(hash);
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Impossible to parse JsonArray HASHES");
+        }
+        return temporalHash;
+    }
+
+    public void parseInfo(ArrayList<BtMessage> msgs, ArrayList<String> hashes) {
+
+        for (BtMessage item : msgs) {
+
+            if (addToDb(item)) {    // Check if the message is original and if it is, add it to the database
+                if (msg_isNew(messages, item)) {
+                    messages.add(item);   // Add it to the sendlist
+                    showNotification(item.user, item.msg);                   // Notificate
+                    sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
+                }
+
+            } else {
+                updateMessage(item);
+            }
+        }
+
+        BtMessage item;
+
+        for (String hash : hashes) {
+            item = DBHelper.getMessage(Global.db, hash);
+            if (item != null) {
+                item.addDevice(currentDevice);
+                DBHelper.updateMessageDevices(Global.db, item);
+            }
+        }
+
+
+    }
     public void parseMessages(String message) {
 
         JSONArray json_message_list;
@@ -396,13 +473,15 @@ public class BtService extends Service {
 
                 JSONObject json_object = json_message_list.getJSONObject(x);
                 BtMessage item = new BtMessage(json_object, currentDevice);
+                Log.w(TAG, "PARSED: " + item.toString());
                 item.updateHits();
                 //Log.w(TAG, "Received: " + item.toString());
 
                 if (addToDb(item)) {    // Check if the message is original and if it is, add it to the database
                     if (msg_isNew(messages, item)) {
-                        addMessage(item);   // Add it to the sendlist
+                        messages.add(item);   // Add it to the sendlist
                         showNotification(item.user, item.msg);                   // Notificate
+                        sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
                     }
 
                     //mHandler.obtainMessage(Global.MESSAGE_READ).sendToTarget();                       // Send the obtained bytes to the UI Activity
@@ -419,7 +498,9 @@ public class BtService extends Service {
         try {
 
             json_message_list = json_wrapper.getJSONArray("HASH");              // Getting JSON Array node
+
             BtMessage item;
+
             for (int x = 0; x < json_message_list.length(); x++) {
                 String hash = json_message_list.get(x).toString();
                 Log.i(TAG, "HASH: " + hash);
@@ -446,8 +527,70 @@ public class BtService extends Service {
 
     }
 
-    public void addMessage(BtMessage Item) {
-        addToList(Item);
+    public String createMessage(JSONArray msg_payload, JSONArray hash_payload) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("MESSAGES", msg_payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            item.put("HASH", hash_payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return item.toString();
+    }
+
+    /*
+    Creates a JSONArray with the specific messages that has to be sent to each device, excluding:
+        Messages sent by the own device
+        Messages I know thta device has
+ */
+    public JSONArray createMessageList(String device) {
+
+        JSONArray my_array = new JSONArray();
+
+        for (BtMessage message : messages) {
+            if (!message.isAlreadySent(device)) {  // If the device is not on the send list
+                Log.w(TAG, "SEND " + message.toJson());
+                message.updateHits();
+                my_array.put(message.toJson());
+            }
+
+        }
+
+        return my_array;
+    }
+
+    public JSONArray createHashList(ArrayList<BtMessage> t_msgs) {
+
+        JSONArray my_array = new JSONArray();
+
+        for (BtMessage message : t_msgs) {
+            my_array.put(message.toHash());
+
+        }
+        return my_array;
+    }
+
+    public JSONArray createHashList(String device) {
+
+        JSONArray my_array = new JSONArray();
+
+        for (BtMessage message : messages) {
+            if (message.origin_mac_address.equals(currentDevice)) {
+                Log.w(TAG, "SEND " + message.toHash());
+                my_array.put(message.toHash());
+            } else if (message.last_mac_address.equals(currentDevice)) {
+                Log.w(TAG, "SEND " + message.toHash());
+                my_array.put(message.toHash());
+            }
+
+        }
+        return my_array;
     }
 
     private class ConnectionManager extends Thread {
@@ -455,18 +598,22 @@ public class BtService extends Service {
         public ConnectionManager() {
             Log.i(TAG, "Starting ConnectionManager");
         }
-
         public void run() {
 
             busy = true;
+
             mAdapter = BluetoothAdapter.getDefaultAdapter();
-            mChatService = new BtModule(context, mHandler);
-            mChatService.start();
+
+            if (mChatService == null) {
+                mChatService = new BtModule(context, mHandler);
+                mChatService.start();
+            }
 
             for (String device_addr : devices) {
                 n_connection++;
                 Log.w(TAG, "Connection number: " + n_connection);
                 long starttime = System.currentTimeMillis();
+
                 //1- CONNECT
                 BluetoothDevice device = mAdapter.getRemoteDevice(device_addr);
 
@@ -483,23 +630,25 @@ public class BtService extends Service {
                 long startTime = System.currentTimeMillis();
 
                 while (mChatService.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
-                    //Log.i("STATUS",String.valueOf(System.currentTimeMillis() - startTime));
                     if (System.currentTimeMillis() - startTime > 3000) {
                         Log.e(TAG, "Time for stablishing connection exceeded");
                         mChatService.setState(Global.CONECTION_FAILED);
                         break;
                     }
                 }
+
                 long connectime = System.currentTimeMillis();
+
                 if (mChatService.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
                     if (messages != null) {
-                        JSONArray msg_payload = createMessageList(device_addr, messages);
-                        //JSONArray hashes = createHashList(device_addr);
-                        String s = createMessage(msg_payload, "MESSAGES");
+                        JSONArray msg_payload = createMessageList(device_addr);
+                        JSONArray hash_payload = createHashList(device_addr);
+                        String s = createMessage(msg_payload, hash_payload);
                         if (s != null) {
+                            answering = false;
                             send_Message(s);
                             try {
-                                Thread.sleep(500);
+                                Thread.sleep(2000);
                             } catch (Exception e) {
 
                             }
@@ -515,7 +664,16 @@ public class BtService extends Service {
 
                 }
 
-                Log.i(TAG, "Waiting for Server restart.");
+                if (mChatService.getState() == Global.CONECTION_FAILED + 1) {
+                    Log.w(TAG, "Restart Bluetooh...");
+                    resetBt();
+                }
+
+                Log.i(TAG, "Restart for Connection...");
+                mChatService.stop();
+                while (mChatService.getState() != BtModule.STATE_NONE) {
+                }
+
                 mChatService.start();
                 while (mChatService.getState() != BtModule.STATE_LISTEN) {
                 }
@@ -525,55 +683,11 @@ public class BtService extends Service {
             this.cancel();
         }
 
-        public String createMessage(JSONArray payload, String messageType) {
-
-            JSONObject item = new JSONObject();
-            try {
-                item.put(messageType, payload);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            return item.toString();
-        }
-
-        /*
-        Creates a JSONArray with the specific messages that has to be sent to each device, excluding:
-            Messages sent by the own device
-            Messages I know thta device has
-     */
-        public JSONArray createMessageList(String device, ArrayList<BtMessage> messages) {
-
-            JSONArray my_array = new JSONArray();
-
-            for (BtMessage message : messages) {
-                if (!message.isAlreadySent(device)) my_array.put(message.toJson());
-
-            }
-
-            return my_array;
-        }
-
-        public JSONArray createHashList(String device) {
-
-            JSONArray my_array = new JSONArray();
-
-            for (BtMessage message : messages) {
-                if (message.origin_mac_address.equals(currentDevice))
-                    my_array.put(message.toHash());
-                if (message.last_mac_address.equals(currentDevice)) my_array.put(message.toHash());
-
-            }
-            return my_array;
-        }
-
-
-
         public void cancel() {
             busy = false;
             mAdapter.cancelDiscovery();
-            mChatService.stop();
-            mChatService = null;
+            //mChatService.stop();
+            //mChatService = null;
             ConnectionThread = null;
         }
 

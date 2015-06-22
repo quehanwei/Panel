@@ -40,10 +40,8 @@ import org.imdea.panel.Bluetooth.BtService;
 import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Wireless.WifiService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
-import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 
 @SuppressWarnings({"unchecked", "deprecation"})
@@ -51,13 +49,19 @@ import java.lang.reflect.Field;
 public class MainActivity extends FragmentActivity implements ActionBar.TabListener {
 
     public static FragmentManager fm;
-
+    SharedPreferences SP;
     private newMessage messageReceiver = new newMessage();
 
     private ViewPager viewPager;
     private android.app.ActionBar actionbar;
 
-    private SharedPreferences SP;
+
+    private Thread.UncaughtExceptionHandler onRuntimeError = new Thread.UncaughtExceptionHandler() {
+        public void uncaughtException(Thread thread, Throwable ex) {
+            //Try starting the Activity again
+        }
+
+    };
 
     public MainActivity() {
 
@@ -65,11 +69,16 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+
+        Thread.setDefaultUncaughtExceptionHandler(onRuntimeError);
+
+        SP = PreferenceManager.getDefaultSharedPreferences(this);
+
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
         DBHelper msg_database = new DBHelper(this, "messages.db", null, 1);
         Global.db = msg_database.getWritableDatabase();
 
-        //enableBt();
+        enableBt();
 
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -91,6 +100,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         } catch (Exception ex) {
             // Ignore
         }
+        checkUsername();
 
         TabsPagerAdapter mAdapter = new TabsPagerAdapter(getSupportFragmentManager());
         fm = getSupportFragmentManager();
@@ -120,8 +130,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         // Initialize the BluetoothChatService to perform bluetooth connections
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
-        //this.startService(new Intent(this, BtService.class));
-        this.startService(new Intent(this, WifiService.class));
+        this.startService(new Intent(this, BtService.class));
+        //this.startService(new Intent(this, WifiService.class));
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
@@ -139,23 +149,29 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         if (imageUri != null) {
             // Update UI to reflect image being shared
             try {
+
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
 
-                int outWidth = 600;
-                int outHeight = 600;
+                int outWidth = 100;
+                int outHeight = 100;
+
                 if (bitmap.getWidth() > bitmap.getHeight()) {
-                    outHeight = (bitmap.getHeight() * 600) / bitmap.getWidth();
+                    outHeight = (bitmap.getHeight() * outWidth) / bitmap.getWidth();
                 } else {
-                    outWidth = (bitmap.getWidth() * 600) / bitmap.getHeight();
+                    outWidth = (bitmap.getWidth() * outHeight) / bitmap.getHeight();
                 }
 
-                Bitmap resized_bm = Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                resized_bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                byte[] byteArray = stream.toByteArray();
+                /*Bitmap resized_bm = Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true);
+                File sdCardDirectory = Environment.getExternalStorageDirectory();
+                File image = new File(sdCardDirectory, "test.png");
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.PNG, 10, outputStream);
 
-                BtMessage item = new BtMessage(new String(byteArray), PreferenceManager.getDefaultSharedPreferences(this).getString("username_field", "anonymous"));
-                DBHelper.insertMessage(Global.db, item);
+                BtMessage item = new BtMessage(id, SP.getString("username_field", "anonymous"));
+                item.isImage = true;
+
+                DBHelper.insertMessage(Global.db, item);*/
+
                 GeneralFragment.refresh();
                 //Global.messages.add(item); // We add the message to the temporal list
 
@@ -176,14 +192,23 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         }
     }
 
+    public void checkUsername() {
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(this);
+        if (SP.getString("username_field", "anonymous").equals("anonymous")) {
+            SP.edit().putString("username_field", android.os.Build.DEVICE).apply();
+
+        }
+
+    }
     public void enableBt() {
 
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-        SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         if (!mAdapter.isEnabled())
-            startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-        //if (!mAdapter.isEnabled())  mAdapter.enable();                                  //Turn On Bluetooth without Permission
+            mAdapter.enable();                                  //Turn On Bluetooth without Permission
+
+        /*if (!mAdapter.isEnabled())
+            startActivity(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));*/
 
         while (!mAdapter.isEnabled()) {
         }
@@ -191,12 +216,20 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         String restoredMAC = SP.getString("MAC", null);
         if (restoredMAC != null) {
             Global.DEVICE_ADDRESS = restoredMAC;
+            if (restoredMAC.equals("00:00:00:00:00:00")) {
+                Global.DEVICE_ADDRESS = mAdapter.getAddress();
+                SharedPreferences.Editor editor = SP.edit();
+                editor.putString("MAC", Global.DEVICE_ADDRESS);
+                editor.apply();
+            }
         } else {
             Global.DEVICE_ADDRESS = mAdapter.getAddress();
             SharedPreferences.Editor editor = SP.edit();
             editor.putString("MAC", Global.DEVICE_ADDRESS);
             editor.apply();
         }
+
+        Log.w("MAC", Global.DEVICE_ADDRESS);
 
         if (mAdapter.getScanMode() != BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
@@ -205,6 +238,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         }
 
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -245,7 +279,9 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             case R.id.action_exit:
                 try {
                     stopService(new Intent(this, BtService.class));
+                    setResult(RESULT_OK);
                     finish();
+                    android.os.Process.killProcess(android.os.Process.myPid());
                 } catch (Exception e) {
                     Log.e("Main", "Error exiting", e);
                 }
@@ -269,6 +305,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     public void onResume() {
         super.onResume();
         //enableBt();
+        checkUsername();
+
         // Performing this check in onResume() covers the case in which BT was
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
@@ -328,5 +366,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         }
     }
 
-
 }
+
+

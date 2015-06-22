@@ -6,7 +6,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.R;
 
@@ -15,32 +14,28 @@ import java.util.ArrayList;
 public abstract class ItemAdapter extends BaseAdapter {
 
     private ArrayList<?> items;
-    private int R_layout_IdView;
     private Context context;
 
-    public ItemAdapter(Context context, int R_layout_IdView, ArrayList<?> items) {
+    public ItemAdapter(Context context, ArrayList<?> items) {
         super();
         this.context = context;
         this.items = items;
-        this.R_layout_IdView = R_layout_IdView;
     }
 
     @Override
     public View getView(int position, View view, ViewGroup parent) {
-        if (view == null) {
-            try {
-                if (((BtMessage) items.get(position)).origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
-                    LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                    view = vi.inflate(R.layout.list_item_right, null);
-                } else {
-                    LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                    view = vi.inflate(R.layout.list_item_left, null);
-                }
-            } catch (Exception e) {
-                LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                view = vi.inflate(R_layout_IdView, null);
-            }
+        LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
+        while (view == null) {
+
+            BtMessage item = ((BtMessage) items.get(position));
+
+            if (item.isMine) {
+                view = vi.inflate(R.layout.list_item_right, null);
+            } else {
+                view = vi.inflate(R.layout.list_item_left, null);
+
+            }
         }
 
         onEntrada (items.get(position), view);

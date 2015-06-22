@@ -17,17 +17,18 @@
         android:textSize="12dp"
         android:textStyle="italic" />
 
-    <TextView
-        android:id="@+id/msg"
+    <ImageView
+        android:id="@+id/image"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginLeft="80dp"
         android:background="@drawable/msg_you"
+        android:contentDescription="@string/image_id"
         android:paddingBottom="5dp"
         android:paddingLeft="10dp"
         android:paddingRight="10dp"
         android:paddingTop="5dp"
         android:textColor="@color/textColorPrimary"
-        android:textSize="16dp" />
+        android:textSize="16sp" />
 
 </LinearLayout>
