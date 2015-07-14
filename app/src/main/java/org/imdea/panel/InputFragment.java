@@ -27,7 +27,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.DBHelper;
 
 
@@ -56,23 +55,26 @@ public class InputFragment extends DialogFragment {
 
                 String inputText = mEditText.getText().toString();
 
-                if(inputText.isEmpty()){
+                if (inputText.isEmpty()) {
                     Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You didnt write anything!", Toast.LENGTH_SHORT);
                     toast.show();
                     dismiss();
                 } else {
-                        if (inputText.indexOf(' ') != -1) {
-                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You cannot use whitespaces on a Tag", Toast.LENGTH_SHORT);
-                            toast.show();
-                        } else {
-                            if (!DBHelper.existTag(Global.db, mEditText.getText().toString())) {    // If the tag does not exists
+                    if (inputText.indexOf(' ') != -1) {
+                        Toast toast = Toast.makeText(getActivity().getApplicationContext(), "You cannot use whitespaces on a Tag", Toast.LENGTH_SHORT);
+                        toast.show();
+                    } else {
+                        if (!DBHelper.existTag(Global.db, mEditText.getText().toString())) {    // If the tag does not exists
+
                                 DBHelper.newTag(Global.db, inputText);
-                                TagsFragment.refresh();
-                            } else {
-                                Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Tag already exists", Toast.LENGTH_SHORT);
-                                toast.show();
-                            }
+
+                            TagsFragment.refresh();
+                        } else {
+                            Toast toast = Toast.makeText(getActivity().getApplicationContext(), "Tag already exists", Toast.LENGTH_SHORT);
+                            toast.show();
                         }
+                    }
+
                 }
 
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);

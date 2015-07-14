@@ -29,9 +29,8 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.adapter.ItemAdapter;
+import org.imdea.panel.adapter.TagAdapter;
 
 import java.util.ArrayList;
 
@@ -42,7 +41,7 @@ public class TagsFragment extends Fragment {
 
     public static ListView listv;
     public static ArrayList<String> tags;
-    public static ItemAdapter adapter;
+    public static TagAdapter adapter;
     View rootView;
     public TagsFragment(){
 
@@ -68,7 +67,7 @@ public class TagsFragment extends Fragment {
 
         listv = (ListView) rootView.findViewById(R.id.listViewT);
 
-        adapter = new ItemAdapter(getActivity(), tags) {
+        adapter = new TagAdapter(getActivity(), tags) {
             @Override
             public void onEntrada(Object item, View view) {
                 if (item != null) {

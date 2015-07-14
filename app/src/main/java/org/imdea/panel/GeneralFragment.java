@@ -35,9 +35,9 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -114,9 +114,12 @@ public class GeneralFragment extends Fragment {
 
                 BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
                 item.isMine = true;
-
+                Log.i(TAG, "NEW MSG" + text);
                 DBHelper.insertMessage(Global.db, item);
                 text_field.setText("");
+
+                item.last_mac_address = Global.DEVICE_ADDRESS;
+                mqttService.sendToPeers(item);
 
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
@@ -124,12 +127,14 @@ public class GeneralFragment extends Fragment {
                 refresh();
             }
         });
+
         adapter = new ItemAdapter(getActivity(), messages) {
             public void onEntrada(Object item, View view) {
                 TextView text_msg = (TextView) view.findViewById(R.id.msg);
                 text_msg.setText(((BtMessage) item).msg);
                 TextView text_user = (TextView) view.findViewById(R.id.name);
                 text_user.setText(((BtMessage) item).user);
+                refresh();
             }
         };
 
@@ -181,6 +186,7 @@ public class GeneralFragment extends Fragment {
 
         return rootView;
     }
+
 
     public void onDetach() {
         super.onDetach();

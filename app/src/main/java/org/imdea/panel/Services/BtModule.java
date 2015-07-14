@@ -1,4 +1,4 @@
-package org.imdea.panel.Bluetooth;
+package org.imdea.panel.Services;
 
 /*
  * Copyright (C) 2014 The Android Open Source Project
@@ -25,6 +25,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+
+import org.imdea.panel.Global;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -253,41 +255,6 @@ public class BtModule {
     }
 
     /**
-     * Indicate that the connection attempt failed and notify the UI Activity.
-     */
-    private void connectionFailed() {
-        // Send a failure message back to the Activity
-        //Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
-        //Bundle bundle = new Bundle();
-        //bundle.putString(Global.TOAST, "Unable to connect device");
-        //msg.setData(bundle);
-        //mHandler.sendMessage(msg);
-
-        Log.e(TAG, "Unable to connect device (ConnectionThread)");
-        mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED + 1));
-        setState(Global.CONECTION_FAILED);
-        // Start the service over to restart listening mode
-        //BtModule.this.start();
-    }
-
-    /**
-     * Indicate that the connection was lost and notify the UI Activity.
-     */
-    private void connectionLost() {
-        // Send a failure message back to the Activity
-        //Message msg = mHandler.obtainMessage(Global.MESSAGE_TOAST);
-        //Bundle bundle = new Bundle();
-        //bundle.putString(Global.TOAST, "Device connection was lost");
-        Log.e(TAG, "Device connection was lost");
-
-        //msg.setData(bundle);
-        //mHandler.sendMessage(msg);
-
-        // Start the service over to restart listening mode
-        //BtModule.this.start();
-    }
-
-    /**
      * This thread runs while listening for incoming connections. It behaves
      * like a server-side client. It runs until a connection is accepted
      * (or until cancelled).
@@ -306,7 +273,6 @@ public class BtModule {
                 else
                     tmp = mAdapter.listenUsingInsecureRfcommWithServiceRecord(NAME_INSECURE, MY_UUID_INSECURE);
 
-
             } catch (Exception e) {
                 Log.e(TAG, "Listen() failed", e);
             }
@@ -317,7 +283,7 @@ public class BtModule {
             Log.d(TAG, "RUN mAcceptThread" + this);
             setName("AcceptThread");
 
-            BluetoothSocket socket = null;
+            BluetoothSocket socket;
 
             // Listen to the server socket if we're not connected
             while (mState != STATE_CONNECTED) {
@@ -342,6 +308,7 @@ public class BtModule {
                             case STATE_CONNECTED:
                                 // Either not ready or already connected. Terminate new socket.
                                 try {
+                                    mmServerSocket.close();
                                     socket.close();
                                 } catch (IOException e) {
                                     Log.e(TAG, "Could not close unwanted socket", e);
@@ -413,7 +380,9 @@ public class BtModule {
                 } catch (IOException e2) {
                     Log.e(TAG, "Unable to close() socket during connection failure", e2);
                 }
-                connectionFailed();
+                Log.e(TAG, "Unable to connect device (ConnectionThread)");
+                mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED + 1));
+                setState(Global.CONECTION_FAILED);
                 return;
             }
 
@@ -479,8 +448,7 @@ public class BtModule {
                         mHandler.obtainMessage(Global.MESSAGE_READ, bytes, -1, buffer).sendToTarget();
                     }
                 } catch (IOException e) {
-                    Log.e(TAG, "Disconnected", e);
-                    connectionLost();
+                    Log.e(TAG, "Device connection was lost", e);
                     // Start the service over to restart listening mode
                     //BtModule.this.start();
                     break;
@@ -488,7 +456,6 @@ public class BtModule {
 
                 if (System.currentTimeMillis() - startTime > 10000) {
                     Log.e(TAG, "Time Exceeded");
-                    connectionLost();
                     // Start the service over to restart listening mode
                     //BtModule.this.start();
                     break;
@@ -505,8 +472,7 @@ public class BtModule {
             try {
                 mmOutStream.write(buffer);
 
-                // Share the sent message back to the UI Activity
-                mHandler.obtainMessage(Global.MESSAGE_WRITE, -1, -1, buffer).sendToTarget();
+
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
@@ -521,6 +487,10 @@ public class BtModule {
             try {
                 mmInStream.close();
                 mmOutStream.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Close() of Streams failed", e);
+            }
+            try {
                 mmSocket.close();
             } catch (IOException e) {
                 Log.e(TAG, "Close() of connect socket failed", e);

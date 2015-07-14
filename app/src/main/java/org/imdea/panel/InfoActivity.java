@@ -7,7 +7,6 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 

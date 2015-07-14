@@ -36,9 +36,9 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -90,6 +90,8 @@ public class showMessages extends FragmentActivity {
                     item.setTag(tag);
                     DBHelper.insertMessage(Global.db, item);
                     text_field.setText("");
+                    mqttService.sendToPeers(item);
+
                     TagsFragment.refresh();
 
                 }

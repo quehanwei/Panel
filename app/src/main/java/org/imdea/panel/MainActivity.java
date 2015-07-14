@@ -36,10 +36,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewConfiguration;
 
-import org.imdea.panel.Bluetooth.BtService;
-import org.imdea.panel.Bluetooth.Global;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.BtService;
+import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 import java.lang.reflect.Field;
@@ -58,6 +58,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
     private Thread.UncaughtExceptionHandler onRuntimeError = new Thread.UncaughtExceptionHandler() {
         public void uncaughtException(Thread thread, Throwable ex) {
+            ex.printStackTrace();
             //Try starting the Activity again
         }
 
@@ -68,7 +69,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     }
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
 
         Thread.setDefaultUncaughtExceptionHandler(onRuntimeError);
 
@@ -127,11 +127,13 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             public void onPageScrollStateChanged(int arg0) {
             }
         });
+
         // Initialize the BluetoothChatService to perform bluetooth connections
         //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
 
-        this.startService(new Intent(this, BtService.class));
+        //this.startService(new Intent(this, BtService.class));
         //this.startService(new Intent(this, WifiService.class));
+        this.startService(new Intent(this, mqttService.class));
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
@@ -252,7 +254,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         switch (item.getItemId()){
 
             case R.id.action_settings:
-                startActivity(new Intent(this, SettingsActivity.class));
+                try {
+                    startActivity(new Intent(this, SettingsActivity.class));
+                } catch (Exception e) {
+                    Log.e("Main", "ERR", e);
+                }
                 return true;
 
             case R.id.action_about:
@@ -261,9 +267,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
             case R.id.action_newGrp:
                 args = new Bundle();
+
                 InputFragment newTagDialog = new InputFragment();
                 newTagDialog.setArguments(args);
                 newTagDialog.show(fm, "fragment_edit_name");
+
                 return true;
 
             /*case R.id.action_newMsg:

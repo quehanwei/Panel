@@ -152,7 +152,7 @@ public class SettingsActivity extends PreferenceActivity {
         bindPreferenceSummaryToValue(findPreference("sync_frequency"));
         bindPreferenceSummaryToValue(findPreference("ttl_opt"));
 
-        bindPreferenceSummaryToValue(findPreference("MAC"));
+        //bindPreferenceSummaryToValue(findPreference("MAC"));
     }
 
 

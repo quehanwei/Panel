@@ -18,7 +18,7 @@ package org.imdea.panel.Database;
 
 import android.util.Log;
 
-import org.imdea.panel.Bluetooth.Global;
+import org.imdea.panel.Global;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -100,6 +100,81 @@ public class BtMessage {
 
     /* This Method create a message from the JSONObject received
 
+  */
+    public BtMessage(String rawmsg) {
+        JSONObject json_item;
+        try {
+            json_item = new JSONObject(rawmsg);
+        } catch (Exception e) {
+            return;
+        }
+        try {
+            this.user = json_item.getString("user");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+        }
+        try {
+            this.msg = json_item.getString("msg");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.tag = json_item.getString("tag");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.isGeneral = json_item.getBoolean("isGeneral");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.origin_mac_address = json_item.getString("mac");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.origin_date = json_item.getString("date");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.origin_time = json_item.getString("time");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.isImage = json_item.getBoolean("isImage");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+        try {
+            this.TTL = json_item.getInt("TTL");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+
+        }
+
+        try {
+            this.last_mac_address = json_item.getString("lastmac");
+        } catch (Exception e) {
+            Log.e("BtMesssage", "Parsing Error");
+        }
+
+        this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
+        this.last_time = new SimpleDateFormat("HH:mm:ss").format(new Date());
+
+    }
+
+    /* This Method create a message from the JSONObject received
+
       */
     public BtMessage(JSONObject json_item, String mac_addr) {
         try {
@@ -155,7 +230,6 @@ public class BtMessage {
             Log.e("BtMesssage", "Parsing Error");
 
         }
-
         this.last_mac_address = mac_addr;
         this.last_date = new SimpleDateFormat("MM.dd.yyyy").format(new Date());
         this.last_time = new SimpleDateFormat("HH:mm:ss").format(new Date());
@@ -218,6 +292,7 @@ public class BtMessage {
             object.put("time", this.origin_time);
             object.put("TTL", this.TTL);
             object.put("isImage", this.isImage);
+            object.put("lastmac", this.last_mac_address);
 
         } catch (JSONException e) {
             e.printStackTrace();

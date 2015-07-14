@@ -1,4 +1,4 @@
-package org.imdea.panel.Bluetooth;
+package org.imdea.panel.Services;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -21,6 +21,7 @@ import android.util.Log;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Global;
 import org.imdea.panel.LogModule;
 import org.imdea.panel.MainActivity;
 import org.imdea.panel.R;
@@ -49,6 +50,7 @@ public class BtService extends Service {
     private boolean busy = false;
     private boolean force_keepgoing = false;
     private ConnectionManager ConnectionThread = null;
+
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
 
@@ -121,8 +123,6 @@ public class BtService extends Service {
                     }
                     break;
 
-                case Global.MESSAGE_WRITE:
-                    break;
                 case Global.MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
                     String readMessage = new String(readBuf, 0, msg.arg1);                      // construct a string from the valid bytes in the buffer
@@ -154,10 +154,11 @@ public class BtService extends Service {
                     // save the connected device's name
                     currentDevice = msg.getData().getString(Global.DEVICE_NAME);
                     break;
-                case Global.MESSAGE_TOAST:
 
-                    break;
                 case Global.CONECTION_FAILED:
+                    intent = new Intent("org.imdea.panel.STATUS_CHANGED");
+                    intent.putExtra("STATUS", "Error");
+                    sendBroadcast(intent); // Now we warn the app that we received a new message
                     break;
             }
         }
@@ -201,6 +202,7 @@ public class BtService extends Service {
         Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
 
         final Timer myTimer = new Timer();
+
         myTimer.schedule(new TimerTask() {
             public void run() {
 
@@ -406,13 +408,9 @@ public class BtService extends Service {
         JSONArray json_message_list;
         ArrayList<String> temporalHash = new ArrayList();
 
-        ArrayList<BtMessage> temporalList = new ArrayList<>();
-
         try {
 
             json_message_list = json_wrapper.getJSONArray("HASH");              // Getting JSON Array node
-
-            BtMessage item;
 
             for (int x = 0; x < json_message_list.length(); x++) {
                 String hash = json_message_list.get(x).toString();
@@ -454,6 +452,7 @@ public class BtService extends Service {
 
 
     }
+
     public void parseMessages(String message) {
 
         JSONArray json_message_list;
@@ -581,10 +580,10 @@ public class BtService extends Service {
         JSONArray my_array = new JSONArray();
 
         for (BtMessage message : messages) {
-            if (message.origin_mac_address.equals(currentDevice)) {
+            if (message.origin_mac_address.equals(device)) {
                 Log.w(TAG, "SEND " + message.toHash());
                 my_array.put(message.toHash());
-            } else if (message.last_mac_address.equals(currentDevice)) {
+            } else if (message.last_mac_address.equals(device)) {
                 Log.w(TAG, "SEND " + message.toHash());
                 my_array.put(message.toHash());
             }
