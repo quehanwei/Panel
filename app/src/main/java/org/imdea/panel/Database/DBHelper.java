@@ -129,19 +129,27 @@ public class DBHelper extends SQLiteOpenHelper {
 
     public static ArrayList recoverLiveMessages(SQLiteDatabase db, int max) {
         ArrayList<BtMessage> messages = new ArrayList<>();
-        Cursor c;
+        Cursor c = null;
+        try {
+            c = db.rawQuery("SELECT " + datafields + " FROM Messages WHERE hits<" + String.valueOf(max), null);
+            if (c.moveToFirst()) {
+                do {
 
-        c = db.rawQuery("SELECT " + datafields + " FROM Messages WHERE hits<" + String.valueOf(max), null);
-        if (c.moveToFirst()) {
-            do {
+                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                    item.isMine = (c.getInt(12) != 0);
+                    messages.add(item);
 
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
-                item.isMine = (c.getInt(12) != 0);
-                messages.add(item);
-                //Log.i(TAG,"RecoverMessages: " + item.toString());
-            } while (c.moveToNext());
+
+                    //Log.i(TAG,"RecoverMessages: " + item.toString());
+                } while (c.moveToNext());
+            }
+            c.close();
+        } catch (Exception e) {
+            Log.e("TAG", "Error Accesing to this element");
+
         }
-        c.close();
+        if (c != null) c.close();
+
 
         ArrayList<String> tags = getTags(db);
         for (Object tag : tags) {
@@ -150,10 +158,15 @@ public class DBHelper extends SQLiteOpenHelper {
             if (c.moveToFirst()) {
                 do {
                     // We use the constructor String mac,String msg,String user,String time,String date
-                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
-                    item.isMine = (c.getInt(13) != 0);
-                    item.setTag(tag.toString());   // Now we add the Tag
-                    messages.add(item);
+                    try {
+                        BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                        item.isMine = (c.getInt(13) != 0);
+                        item.setTag(tag.toString());   // Now we add the Tag
+                        messages.add(item);
+                    } catch (Exception e) {
+                        Log.e("TAG", "Error Accesing to this element");
+                    }
+
                 } while (c.moveToNext());
             }
             c.close();
@@ -170,10 +183,13 @@ public class DBHelper extends SQLiteOpenHelper {
         Cursor c = db.rawQuery("SELECT " + datafields + " FROM Messages", null);
         if (c.moveToFirst()) {
             do {
-
-                BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
-                item.isMine = (c.getInt(12) != 0);
-                messages.add(item);
+                try {
+                    BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
+                    item.isMine = (c.getInt(12) != 0);
+                    messages.add(item);
+                } catch (Exception e) {
+                    Log.e("TAG", "Error Accesing to this element");
+                }
                 //Log.i(TAG, "RecoverMessages: " + item.toString());
             } while (c.moveToNext());
         }

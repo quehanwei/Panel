@@ -38,7 +38,6 @@ import android.view.ViewConfiguration;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Services.BtService;
 import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
@@ -69,6 +68,14 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     }
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread paramThread, Throwable paramThrowable) {
+                Log.e("Alert", "UNCAUGHT EXCEPTION", paramThrowable);
+                System.exit(1);
+            }
+        });
 
         Thread.setDefaultUncaughtExceptionHandler(onRuntimeError);
 
@@ -286,10 +293,11 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
             case R.id.action_exit:
                 try {
-                    stopService(new Intent(this, BtService.class));
+                    stopService(new Intent(this, mqttService.class));
                     setResult(RESULT_OK);
+                    mqttService.disconnect();
                     finish();
-                    android.os.Process.killProcess(android.os.Process.myPid());
+                    //android.os.Process.killProcess(android.os.Process.myPid());
                 } catch (Exception e) {
                     Log.e("Main", "Error exiting", e);
                 }
@@ -304,6 +312,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         super.onPause();
         try {
             unregisterReceiver(messageReceiver);
+
         } catch (Exception e) {
 
         }
@@ -365,7 +374,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             if (action.equalsIgnoreCase("org.imdea.panel.MSG_RECEIVED")) {
                 GeneralFragment.refresh();
                 TagsFragment.refresh();
-                showMessages.refresh();
+                //showMessages.refresh();
             }
             if (action.equalsIgnoreCase("org.imdea.panel.STATUS_CHANGED")) {
                 String s = intent.getExtras().getString("STATUS");

@@ -49,9 +49,12 @@ public class mqttService extends Service implements MqttCallback {
 
     private static final String TAG = "MqttService";
     public static SQLiteDatabase db;
+
     public static volatile ArrayList<BtMessage> messages = new ArrayList<>();
     public static volatile ArrayList<BtMessage> failedMessages = new ArrayList<>();
+
     public static ArrayList<String> devices = new ArrayList<>();
+    public static int trusted = 0;
     static MqttAsyncClient client;
     private static MQTTConnectionStatus connectionStatus = MQTTConnectionStatus.INITIAL;
     BluetoothAdapter mAdapter;
@@ -59,7 +62,7 @@ public class mqttService extends Service implements MqttCallback {
     int n_connection = 0;
     int nodevices = 0;
     private boolean busy = false;
-    final BroadcastReceiver bReceiver = new BroadcastReceiver() {
+    public final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
 
             String action = intent.getAction();
@@ -145,6 +148,21 @@ public class mqttService extends Service implements MqttCallback {
         }
     }
 
+    public static void disconnect() {
+        if (client != null) {
+
+            try {
+                client.disconnect();
+            } catch (MqttException e) {
+                Log.e(TAG, "Error disconnecting");
+            }
+        }
+    }
+
+    /*
+        SEND MESSAGES *******************************************************************************************
+     */
+
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Initiating ");
         SP = PreferenceManager.getDefaultSharedPreferences(this);
@@ -198,10 +216,6 @@ public class mqttService extends Service implements MqttCallback {
         return Service.START_NOT_STICKY;
     }
 
-    /*
-        SEND MESSAGES *******************************************************************************************
-     */
-
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -245,7 +259,6 @@ public class mqttService extends Service implements MqttCallback {
         }
     }
 
-
     public void showNotification(String title, String msg) {
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_stat_name)
@@ -267,7 +280,6 @@ public class mqttService extends Service implements MqttCallback {
         //new Random().nextInt(100)
     }
 
-
     public boolean isNew(String new_item, ArrayList<String> list) {
         if (list == null || list.isEmpty()) return true;
         for (String list_item : list) {
@@ -275,7 +287,6 @@ public class mqttService extends Service implements MqttCallback {
         }
         return true;
     }
-
 
     public synchronized boolean addToDb(BtMessage item) {
 
@@ -297,7 +308,6 @@ public class mqttService extends Service implements MqttCallback {
         db.close();
         return Success;
     }
-
 
     /**
      * connectionLost
@@ -345,6 +355,7 @@ public class mqttService extends Service implements MqttCallback {
                 if (msgstring.charAt(0) == 'X') {
                     Log.w(TAG, "HELLO from " + msgstring.substring(1, 18));
                     boolean isNew = true;
+
                     for (String device : Global.devices) {
                         if (msgstring.substring(1, 18).equals(device)) {
                             isNew = false;
@@ -363,16 +374,20 @@ public class mqttService extends Service implements MqttCallback {
                     }
                     if (isNew) devices.add(msgstring.substring(1, 18));
 
+
                 } else if (!msgstring.contains("{")) {
                     String hash = msgstring.substring(17);
                     String macAddr = msgstring.substring(0, 17);
                     Log.w(TAG, "ACK from " + macAddr + " " + hash);
 
-                    for (BtMessage msg : messages) {
-                        if (hash.equals(msg.toHash())) {
-                            msg.addDevice(macAddr);
-                            DBHelper.updateMessageDevices(Global.db, msg);
+                    try {
+                        BtMessage item = DBHelper.getMessage(Global.db, hash);
+                        if (item != null) {
+                            item.addDevice(macAddr);
+                            DBHelper.updateMessage(Global.db, item);
                         }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error Updating Message");
                     }
 
 
@@ -425,11 +440,13 @@ public class mqttService extends Service implements MqttCallback {
 
         IMqttToken token;
         try {
-            token = client.publish("log/" + Global.DEVICE_ADDRESS, mqtt_msg);
+            //token = client.publish("log/" + Global.DEVICE_ADDRESS, mqtt_msg);
+            token = client.publish("log", mqtt_msg);
             token.waitForCompletion(5000);
 
         } catch (MqttException e) {
-            Log.e(TAG, "Error Sending ACK", e);
+            Log.e(TAG, "Error Sending ACK, Connected=" + client.isConnected());
+
         }
     }
 
@@ -503,7 +520,6 @@ public class mqttService extends Service implements MqttCallback {
         connectionStatus = MQTTConnectionStatus.NOTCONNECTED;
         return false;
     }
-
 
     /*
             BLUETOOTH RELATED METHODS and Bt device management methods
@@ -585,6 +601,15 @@ public class mqttService extends Service implements MqttCallback {
 
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        try {
+            unregisterReceiver(bReceiver);
+        } catch (Exception e) {
+            Log.e(TAG, "UnregisterReceiver Error");
+        }
+    }
 
     public enum MQTTConnectionStatus {
         INITIAL,                            // initial status
@@ -592,8 +617,5 @@ public class mqttService extends Service implements MqttCallback {
         CONNECTED,                          // connected
         NOTCONNECTED          // failed to connect for some reason
     }
-
-
-
 }
 
