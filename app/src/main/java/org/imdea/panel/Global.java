@@ -24,7 +24,7 @@ public class Global {
     public static String DEVICE_ADDRESS = "00:00:00:00:00";
     //public static String SERVER_IP = "192.168.43.55";
     public static String SERVER_IP = "172.16.6.22";
-    public static int SERVER_PORT = 2424;
+    public static int SERVER_PORT = 6464;
 
     public static ArrayList<String> devices = new ArrayList<>();
     public static ArrayList<String> old_devices = new ArrayList<>();

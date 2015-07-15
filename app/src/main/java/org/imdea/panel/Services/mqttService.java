@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
@@ -22,6 +23,7 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
@@ -42,27 +44,20 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
-
-/*
-
-The user is suscribed to HIS MAC
-here he receives: Messages, Acks and hellos
-send info to LOG/HISMAC
-send info to DEV/OTHERMACS
- */
 public class mqttService extends Service implements MqttCallback {
 
 
+    private static final String TAG = "MqttService";
     public static SQLiteDatabase db;
     public static volatile ArrayList<BtMessage> messages = new ArrayList<>();
-
+    public static volatile ArrayList<BtMessage> failedMessages = new ArrayList<>();
     public static ArrayList<String> devices = new ArrayList<>();
     static MqttAsyncClient client;
+    private static MQTTConnectionStatus connectionStatus = MQTTConnectionStatus.INITIAL;
     BluetoothAdapter mAdapter;
     SharedPreferences SP;
     int n_connection = 0;
     int nodevices = 0;
-    private String TAG = "MqttService";
     private boolean busy = false;
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -76,26 +71,39 @@ public class mqttService extends Service implements MqttCallback {
             }
 
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                mAdapter.cancelDiscovery();
-                if (devices.isEmpty()) {
 
+                mAdapter.cancelDiscovery();
+                if (client.isConnected()) connectionStatus = MQTTConnectionStatus.CONNECTED;
+                if (devices.isEmpty()) {
+                    Log.i(TAG, "Discovery Finished: 0");
                     nodevices++;
-                    if (nodevices == 3) resetBt();
+                    if (nodevices == 5) resetBt();
                 } else {
                     Global.devices = devices;
                     nodevices = 0;
                     Log.i(TAG, "Discovery Finished: " + Global.devices.toString());
 
                     sendLog("BLUETOOTH", Global.devices.toString());
-                    if (n_connection % 5 == 0) {
+                    if (n_connection % 10 == 0) {
                         sendLog("BATTERY", String.valueOf(getBatteryLevel()));
-                        //nLog.getWifi();
+                        //nLog.getLocation();
+                    }
+                    if (n_connection % 20 == 0) {
+                        getWifi();
                         //nLog.getLocation();
                     }
 
                     for (String device : getNewDevices(Global.devices, Global.old_devices)) {
                         sendHandsake(device);
                     }
+
+                    if (!client.isConnected()) {
+                        if (connectionStatus != MQTTConnectionStatus.CONNECTING) {
+                            start_connection();
+                        }
+                    }
+                    if (!failedMessages.isEmpty()) sendFailedMessages();
+
                 }
                 Intent intent2 = new Intent("org.imdea.panel.STATUS_CHANGED");
                 intent2.putExtra("STATUS", Global.devices.size() + " devices");
@@ -103,142 +111,42 @@ public class mqttService extends Service implements MqttCallback {
             }
         }
     };
-    private MQTTConnectionStatus connectionStatus = MQTTConnectionStatus.INITIAL;
 
     public static void sendToPeers(BtMessage msg) {
-        MqttMessage mqtt_msg = new MqttMessage(msg.toJson().toString().getBytes());
-        mqtt_msg.setQos(2);
-        for (String device : Global.devices) {
-            IMqttToken token;
-            try {
-                token = client.publish("dev/" + device, mqtt_msg);
-                token.waitForCompletion(5000);
+        final BtMessage thismsg = msg;
+        if (devices.isEmpty()) failedMessages.add(msg);
 
-            } catch (MqttException e) {
-                Log.e("MqttService", "Error sending Message", e);
-            }
-        }
-    }
+            // If the device is not connected, the callback process will throw uip an exception and a reconnection process
+        else {
+            MqttMessage mqtt_msg = new MqttMessage(msg.toJson().toString().getBytes());
+            mqtt_msg.setQos(2);
+            for (String device : Global.devices) {
+                IMqttToken token;
+                try {
+                    token = client.publish("dev/" + device, mqtt_msg);
+                    token.waitForCompletion(5000);
+                    token.setActionCallback(new IMqttActionListener() {
+                        @Override
+                        public void onSuccess(IMqttToken iMqttToken) {
+                            failedMessages.remove(thismsg);
+                        }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+                        @Override
+                        public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
+                            failedMessages.add(thismsg);
+                        }
+                    });
 
-    public void showNotification(String title, String msg) {
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.drawable.ic_stat_name)
-                .setContentTitle("Message: " + title)
-                .setContentText(msg);
-
-
-        if (SP.getBoolean("notifications_new_message_vibrate", false))
-            mBuilder.setVibrate(new long[]{500, 500, 500});
-
-        mBuilder.setSound(Uri.parse(SP.getString("notifications_new_message_ringtone", "RingtoneManager.TYPE_NOTIFICATION")));
-
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
-        mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-        if (SP.getBoolean("notifications_new_message", true))
-            mNotifyMgr.notify(87, mBuilder.build());
-        //new Random().nextInt(100)
-    }
-
-    public int getBattery() {
-        return 0;
-    }
-
-    public String[] getNewDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
-
-        // If the mac is in both lists, delete the mac.
-        //Later, return the remaining macs that would be the new ones
-        for (String newmac : newlist) {
-            for (String oldmac : oldlist) {
-                if (newmac.equals(oldmac)) newlist.remove(newmac);
-            }
-        }
-
-        return newlist.toArray(new String[newlist.size()]);
-    }
-
-
-    public String[] getOldDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
-
-        // We iterate over the old list
-        // if there is a coincidence, do nothing
-        // if one of the old lsit is not in the new one, save it
-        boolean isNew = true;
-        ArrayList<String> result = new ArrayList<>();
-        for (String oldmac : oldlist) {
-            for (String newmac : newlist) {
-                if (newmac.equals(oldmac)) isNew = false;
-            }
-            if (isNew) result.add(oldmac);
-            isNew = true;
-        }
-
-        return result.toArray(new String[result.size()]);
-
-    }
-
-
-    public boolean isNew(String new_item, ArrayList<String> list) {
-        if (list == null || list.isEmpty()) return true;
-        for (String list_item : list) {
-            if (new_item.equals(list_item)) return false;
-        }
-        return true;
-    }
-
-    public void resetBt() {
-        Log.w(TAG, "Resetting Bt");
-        busy = true;
-        mAdapter.cancelDiscovery();
-        while (mAdapter.isDiscovering()) {
-
-        }
-        mAdapter.disable();
-        while (mAdapter.isEnabled()) {
-
-        }
-        mAdapter.enable();
-        while (!mAdapter.isEnabled()) {
-
-        }
-        busy = false;
-    }
-
-    public void startDiscovery() {
-
-        if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
-        //if (Global.devices != null) Global.devices.clear();
-        mAdapter.startDiscovery();
-        Log.i(TAG, "Starting Discovery");
-        Intent intent2 = new Intent("org.imdea.panel.STATUS_CHANGED");
-        intent2.putExtra("STATUS", "Discovering");
-        sendBroadcast(intent2); // Now we warn the app that we received a new message
-        // This timer assures that the process finish (even if there are some strange error)
-
-        final Timer myTimer = new Timer();
-        myTimer.schedule(new TimerTask() {
-            public void run() {
-                if (mAdapter.isDiscovering()) {
-                    Log.e(TAG, "Discovering Time Exceeded");
-
-                    resetBt();
-                    //startDiscovery();
-                    myTimer.cancel();
+                } catch (MqttException e) {
+                    Log.e("MqttService", "Error sending Message");
+                    failedMessages.add(msg);
                 }
             }
-
-        }, 30000);
-
+        }
     }
 
     public int onStartCommand(Intent intent, int flags, int startId) {
-
+        Log.i(TAG, "Initiating ");
         SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -267,13 +175,13 @@ public class mqttService extends Service implements MqttCallback {
         Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
 
         start_connection();
+        //DBHelper.deleteOutdated(Global.db);
 
         final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
 
                 messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
-
                 Log.i(TAG, "MESG: " + messages.size() + " " + String.valueOf(busy));
 
                 /*
@@ -289,6 +197,85 @@ public class mqttService extends Service implements MqttCallback {
 
         return Service.START_NOT_STICKY;
     }
+
+    /*
+        SEND MESSAGES *******************************************************************************************
+     */
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    public void sendFailedMessages() {
+        Log.i(TAG, "ReSending Failed messages");
+        ArrayList<BtMessage> temporalList = new ArrayList<>();
+        for (BtMessage item : failedMessages) temporalList.add(item);
+        failedMessages.clear();
+        for (BtMessage item : temporalList) sendToPeers(item);
+    }
+
+    public void sendHandsake(String macaddr) {
+
+        MqttMessage mqtt_msg = new MqttMessage(("X" + Global.DEVICE_ADDRESS).getBytes());
+        mqtt_msg.setQos(2);
+
+        IMqttToken token;
+        try {
+            token = client.publish("dev/" + macaddr, mqtt_msg);
+            token.waitForCompletion(5000);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error sending Hello");
+        }
+    }
+
+    public void sendAck(BtMessage item) {
+
+        MqttMessage mqtt_msg = new MqttMessage((Global.DEVICE_ADDRESS + item.toHash()).getBytes());
+        mqtt_msg.setQos(2);
+
+        IMqttToken token;
+        try {
+            token = client.publish("dev/" + item.last_mac_address, mqtt_msg);
+            token.waitForCompletion(5000);
+
+        } catch (MqttException e) {
+            Log.e(TAG, "Error sending Ack");
+        }
+    }
+
+
+    public void showNotification(String title, String msg) {
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+                .setSmallIcon(R.drawable.ic_stat_name)
+                .setContentTitle("Message: " + title)
+                .setContentText(msg);
+
+
+        if (SP.getBoolean("notifications_new_message_vibrate", false))
+            mBuilder.setVibrate(new long[]{500, 500, 500});
+
+        mBuilder.setSound(Uri.parse(SP.getString("notifications_new_message_ringtone", "RingtoneManager.TYPE_NOTIFICATION")));
+
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(resultPendingIntent);
+        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        if (SP.getBoolean("notifications_new_message", true))
+            mNotifyMgr.notify(87, mBuilder.build());
+        //new Random().nextInt(100)
+    }
+
+
+    public boolean isNew(String new_item, ArrayList<String> list) {
+        if (list == null || list.isEmpty()) return true;
+        for (String list_item : list) {
+            if (new_item.equals(list_item)) return false;
+        }
+        return true;
+    }
+
 
     public synchronized boolean addToDb(BtMessage item) {
 
@@ -311,35 +298,6 @@ public class mqttService extends Service implements MqttCallback {
         return Success;
     }
 
-    public void sendHandsake(String macaddr) {
-
-        MqttMessage mqtt_msg = new MqttMessage(("X" + Global.DEVICE_ADDRESS).getBytes());
-        mqtt_msg.setQos(2);
-
-        IMqttToken token;
-        try {
-            token = client.publish("dev/" + macaddr, mqtt_msg);
-            token.waitForCompletion(5000);
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error sending Hello", e);
-        }
-    }
-
-    public void sendAck(BtMessage item) {
-
-        MqttMessage mqtt_msg = new MqttMessage((Global.DEVICE_ADDRESS + item.toHash()).getBytes());
-        mqtt_msg.setQos(2);
-
-        IMqttToken token;
-        try {
-            token = client.publish("dev/" + item.last_mac_address, mqtt_msg);
-            token.waitForCompletion(5000);
-
-        } catch (MqttException e) {
-            Log.e(TAG, "Error sending Ack", e);
-        }
-    }
 
     /**
      * connectionLost
@@ -348,7 +306,11 @@ public class mqttService extends Service implements MqttCallback {
     @Override
     public void connectionLost(Throwable t) {
         Log.w(TAG, "Connection lost!");
-        start_connection();
+        if (connectionStatus != MQTTConnectionStatus.CONNECTING) {
+            connectionStatus = MQTTConnectionStatus.CONNECTING;
+            start_connection();
+        }
+
         // code to reconnect to the broker would go here if desired
     }
 
@@ -359,6 +321,7 @@ public class mqttService extends Service implements MqttCallback {
      */
     @Override
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
+        if (client.isConnected()) connectionStatus = MQTTConnectionStatus.CONNECTED;
         //Log.w(TAG,"Delivered");
     }
 
@@ -414,8 +377,8 @@ public class mqttService extends Service implements MqttCallback {
 
 
                 } else {
-                    Log.w(TAG, "MSG: " + msgstring);
                     BtMessage item = new BtMessage(msgstring);
+                    Log.w(TAG, "MSG from " + item.last_mac_address + " -" + item.msg);
                     showNotification(item.user, item.msg);
                     addToDb(item);
                     sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
@@ -430,7 +393,6 @@ public class mqttService extends Service implements MqttCallback {
 
     public void start_connection() {
         IMqttToken token;
-        boolean succesful = true;
 
         try {
             String url = String.format(Locale.US, "tcp://%s:%d", Global.SERVER_IP, Global.SERVER_PORT);
@@ -440,6 +402,7 @@ public class mqttService extends Service implements MqttCallback {
             client.setCallback(this);
         } catch (Exception e) {
             Log.e(TAG, "Error Creating Client", e);
+            connectionStatus = MQTTConnectionStatus.NOTCONNECTED;
             Intent intent = new Intent("org.imdea.panel.STATUS_CHANGED");
             sendBroadcast(intent.putExtra("STATUS", "Disconnected")); // Now we warn the app that we received a new message
             return;
@@ -456,7 +419,7 @@ public class mqttService extends Service implements MqttCallback {
     }
 
     public void sendLog(String title, String logtext) {
-        String finalstring = new SimpleDateFormat("yyyy.MM.dd.HH:mm:ss").format(Calendar.getInstance().getTime()) + "\t" + Global.DEVICE_ADDRESS + "\t" + title + "\t" + logtext + "\n";
+        String finalstring = new SimpleDateFormat("yyyy.MM.dd.HH:mm:ss").format(Calendar.getInstance().getTime()) + "," + Global.DEVICE_ADDRESS + "," + title + "," + logtext;
         MqttMessage mqtt_msg = new MqttMessage(finalstring.getBytes());
         mqtt_msg.setQos(2);
 
@@ -500,7 +463,7 @@ public class mqttService extends Service implements MqttCallback {
                 List<ScanResult> results = mWifiManager.getScanResults();
                 String s = "";
                 for (ScanResult ap : results) {
-                    s = s + ap.SSID + "," + ap.BSSID + "\t";
+                    s = s + ap.SSID + "," + ap.BSSID + "\n";
                 }
                 try {
                     unregisterReceiver(this);
@@ -517,17 +480,120 @@ public class mqttService extends Service implements MqttCallback {
 
     }
 
+    public boolean isDataEnabled() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm.getBackgroundDataSetting() == false) // respect the user's request not to use data!
+        {
+            // user has disabled background data
+            connectionStatus = MQTTConnectionStatus.NOTCONNECTED;
+
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isOnline() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm.getActiveNetworkInfo() != null &&
+                cm.getActiveNetworkInfo().isAvailable() &&
+                cm.getActiveNetworkInfo().isConnected()) {
+            return true;
+        }
+
+        connectionStatus = MQTTConnectionStatus.NOTCONNECTED;
+        return false;
+    }
+
+
+    /*
+            BLUETOOTH RELATED METHODS and Bt device management methods
+     */
+    public void resetBt() {
+        Log.w(TAG, "Resetting Bt");
+        busy = true;
+        mAdapter.cancelDiscovery();
+        while (mAdapter.isDiscovering()) {
+
+        }
+        mAdapter.disable();
+        while (mAdapter.isEnabled()) {
+
+        }
+        mAdapter.enable();
+        while (!mAdapter.isEnabled()) {
+
+        }
+        busy = false;
+    }
+
+    public void startDiscovery() {
+
+        if (mAdapter.isDiscovering()) mAdapter.cancelDiscovery();
+        //if (Global.devices != null) Global.devices.clear();
+        mAdapter.startDiscovery();
+        Log.i(TAG, "Starting Discovery");
+        Intent intent2 = new Intent("org.imdea.panel.STATUS_CHANGED");
+        intent2.putExtra("STATUS", "Discovering");
+        sendBroadcast(intent2); // Now we warn the app that we received a new message
+        // This timer assures that the process finish (even if there are some strange error)
+
+        final Timer myTimer = new Timer();
+        myTimer.schedule(new TimerTask() {
+            public void run() {
+                if (mAdapter.isDiscovering()) {
+                    Log.e(TAG, "Discovering Time Exceeded");
+
+                    resetBt();
+                    //startDiscovery();
+                    myTimer.cancel();
+                }
+            }
+
+        }, 30000);
+
+    }
+
+    public String[] getNewDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
+
+        // If the mac is in both lists, delete the mac.
+        //Later, return the remaining macs that would be the new ones
+        for (String newmac : newlist) {
+            for (String oldmac : oldlist) {
+                if (newmac.equals(oldmac)) newlist.remove(newmac);
+            }
+        }
+
+        return newlist.toArray(new String[newlist.size()]);
+    }
+
+    public String[] getOldDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
+
+        // We iterate over the old list
+        // if there is a coincidence, do nothing
+        // if one of the old lsit is not in the new one, save it
+        boolean isNew = true;
+        ArrayList<String> result = new ArrayList<>();
+        for (String oldmac : oldlist) {
+            for (String newmac : newlist) {
+                if (newmac.equals(oldmac)) isNew = false;
+            }
+            if (isNew) result.add(oldmac);
+            isNew = true;
+        }
+
+        return result.toArray(new String[result.size()]);
+
+    }
+
+
     public enum MQTTConnectionStatus {
         INITIAL,                            // initial status
         CONNECTING,                         // attempting to connect
         CONNECTED,                          // connected
-        NOTCONNECTED_WAITINGFORINTERNET,    // can't connect because the phone
-        //     does not have Internet access
-        NOTCONNECTED_USERDISCONNECT,        // user has explicitly requested
-        //     disconnection
-        NOTCONNECTED_DATADISABLED,          // can't connect because the user
-        //     has disabled data access
-        NOTCONNECTED_UNKNOWNREASON          // failed to connect for some reason
+        NOTCONNECTED          // failed to connect for some reason
     }
+
+
+
 }
 

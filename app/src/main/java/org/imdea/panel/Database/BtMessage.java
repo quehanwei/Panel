@@ -53,6 +53,9 @@ public class BtMessage {
     public int hits;
     public boolean isGeneral;
 
+    public String wifiSSID;
+    public String wifiBSSID;
+
     // That is the basic constructor of the Output Message
     public BtMessage(String msg,String user){
         this.msg = msg;
@@ -236,6 +239,22 @@ public class BtMessage {
 
     }
 
+    public void setContext(String name, String mac) {
+        this.wifiSSID = name;
+        this.wifiBSSID = mac;
+    }
+
+    public boolean isInContext(String name) {
+        if (this.wifiSSID.equals(name)) return true;
+        else return false;
+    }
+
+    public boolean isOutdated() {
+        if (this.origin_date.equals(new SimpleDateFormat("MM.dd.yyyy").format(new Date())))
+            return false;
+        else return true;
+    }
+
     // Methods to provide hastag characteristics
     public void setTag(String tag){
         this.tag = tag;
@@ -293,7 +312,7 @@ public class BtMessage {
             object.put("TTL", this.TTL);
             object.put("isImage", this.isImage);
             object.put("lastmac", this.last_mac_address);
-
+            object.put("context", this.wifiSSID);
         } catch (JSONException e) {
             e.printStackTrace();
         }

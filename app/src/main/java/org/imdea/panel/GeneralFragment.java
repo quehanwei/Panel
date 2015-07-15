@@ -134,7 +134,7 @@ public class GeneralFragment extends Fragment {
                 text_msg.setText(((BtMessage) item).msg);
                 TextView text_user = (TextView) view.findViewById(R.id.name);
                 text_user.setText(((BtMessage) item).user);
-                refresh();
+                //refresh();
             }
         };
 
@@ -189,6 +189,7 @@ public class GeneralFragment extends Fragment {
 
 
     public void onDetach() {
+
         super.onDetach();
     }
 

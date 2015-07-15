@@ -66,7 +66,7 @@ public class showMessages extends FragmentActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_messages);
-
+        refresh();
         tag = getIntent().getExtras().getString("tag");
         messages = DBHelper.recoverMessagesByTag(Global.db, tag);
         setTitle(tag);

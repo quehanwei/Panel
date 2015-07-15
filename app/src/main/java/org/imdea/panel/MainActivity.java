@@ -365,6 +365,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             if (action.equalsIgnoreCase("org.imdea.panel.MSG_RECEIVED")) {
                 GeneralFragment.refresh();
                 TagsFragment.refresh();
+                showMessages.refresh();
             }
             if (action.equalsIgnoreCase("org.imdea.panel.STATUS_CHANGED")) {
                 String s = intent.getExtras().getString("STATUS");
