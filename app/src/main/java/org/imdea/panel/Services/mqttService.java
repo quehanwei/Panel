@@ -244,6 +244,9 @@ public class mqttService extends Service implements MqttCallback {
         }
     }
 
+    public void sendLogMsg(BtMessage item) {
+        sendLog("MESSAGE", item.origin_mac_address + "," + Global.DEVICE_ADDRESS + "," + item.toHash());
+    }
     public void sendAck(BtMessage item) {
 
         MqttMessage mqtt_msg = new MqttMessage((Global.DEVICE_ADDRESS + item.toHash()).getBytes());
@@ -257,6 +260,10 @@ public class mqttService extends Service implements MqttCallback {
         } catch (MqttException e) {
             Log.e(TAG, "Error sending Ack");
         }
+
+        sendLogMsg(item);
+
+
     }
 
     public void showNotification(String title, String msg) {

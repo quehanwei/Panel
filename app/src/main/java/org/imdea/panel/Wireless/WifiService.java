@@ -21,6 +21,7 @@ public class WifiService extends Service {
 
         wmodule = new WifiModule(this);
         wmodule.start();
+
         /*final Timer myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {

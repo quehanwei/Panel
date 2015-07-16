@@ -293,8 +293,6 @@ public class BtMessage {
 
     public String toString(){
         return "'" + origin_mac_address + "', '" + user + "', '" + msg + "', '" + tag + "'";
-        //return orgin + mac + message
-
 
     }
 
