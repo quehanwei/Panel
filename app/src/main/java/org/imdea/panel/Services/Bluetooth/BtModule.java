@@ -1,4 +1,4 @@
-package org.imdea.panel.Services;
+package org.imdea.panel.Services.Bluetooth;
 
 /*
  * Copyright (C) 2014 The Android Open Source Project
@@ -210,7 +210,6 @@ public class BtModule {
         msg.setData(bundle);
         mHandler.sendMessage(msg);
         Log.w(TAG, "Connected to: " + device.getName());
-        setState(STATE_CONNECTED);
     }
 
     /**
@@ -380,7 +379,7 @@ public class BtModule {
                 } catch (IOException e2) {
                     Log.e(TAG, "Unable to close() socket during connection failure", e2);
                 }
-                Log.e(TAG, "Unable to connect device (ConnectionThread)");
+                Log.e(TAG, "Unable to connect to device (ConnectionThread)");
                 mHandler.sendMessage(mHandler.obtainMessage(Global.CONECTION_FAILED + 1));
                 setState(Global.CONECTION_FAILED);
                 return;
@@ -429,6 +428,8 @@ public class BtModule {
 
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
+            setState(STATE_CONNECTED);
+
         }
 
         public void run() {

@@ -1,4 +1,4 @@
-package org.imdea.panel.FloatyBluetooth;
+package org.imdea.panel.Services.FloatyBluetooth;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;

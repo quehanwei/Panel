@@ -1,4 +1,4 @@
-package org.imdea.panel.Services;
+package org.imdea.panel.Services.Bluetooth;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -65,9 +65,12 @@ public class BtService extends Service {
             if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
                 mAdapter.cancelDiscovery();
                 if (devices.isEmpty()) {
-                    Log.i(TAG, "Discovery Finished: No Devices");
+                    Log.i(TAG, "Discovery Finished: No Devices (try " + nodevices + ")");
                     nodevices++;
-                    if (nodevices == 3) resetBt();
+                    if (nodevices == 3) {
+                        resetBt();
+                        nodevices = 0;
+                    }
                 } else {
                     nodevices = 0;
                     Log.i(TAG, "Discovery Finished: " + devices.toString());
@@ -90,7 +93,7 @@ public class BtService extends Service {
             }
         }
     };
-    private BtModule mChatService = null;
+    private BtModule mBtModule = null;
     /**
      * The Handler that gets information back from the BtModule
      */
@@ -147,7 +150,7 @@ public class BtService extends Service {
                     // After all of this, we update our list withe the new messages
                     parseInfo(new_msgs, new_hashes);
 
-                    mChatService.stop();
+                    mBtModule.stop();
 
                     break;
                 case Global.MESSAGE_DEVICE_NAME:
@@ -175,8 +178,8 @@ public class BtService extends Service {
         Global.DEVICE_ADDRESS = mAdapter.getAddress();
 
         // Iniciamos el modulo bluetooth en modo escucha
-        mChatService = new BtModule(context, mHandler);
-        mChatService.start();
+        mBtModule = new BtModule(context, mHandler);
+        mBtModule.start();
 
         Global.refresh_freq = Integer.parseInt(SP.getString("sync_frequency", "60"));
         Global.max_send_n = Integer.parseInt(SP.getString("ttl_opt", "300"));
@@ -187,7 +190,9 @@ public class BtService extends Service {
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
 
         //Foreground Service notification
+        //final Intent notificationIntent = new Intent(this, MainActivity.class);
         final Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_stat_name)
@@ -218,13 +223,13 @@ public class BtService extends Service {
                     if (force_keepgoing) {                  // If it is the next iteration, restart the service
                         Log.e(TAG, "Something went wrong, restarting Bt");
                         force_keepgoing = false;
-                        mChatService.stop();
-                        mChatService = null;
+                        mBtModule.stop();
+                        mBtModule = null;
                         mAdapter.disable();
                         mAdapter.enable();
                         ConnectionThread = null;
-                        mChatService = new BtModule(context, mHandler);
-                        mChatService.start();
+                        mBtModule = new BtModule(context, mHandler);
+                        mBtModule.start();
                     }
                 }
 
@@ -263,12 +268,13 @@ public class BtService extends Service {
     @Override
     public boolean stopService(Intent name) {
         mAdapter.cancelDiscovery();
-        mChatService.stop();
+        mBtModule.stop();
         mAdapter.disable();
         return super.stopService(name);
     }
 
     public void resetBt() {
+        Log.w(TAG, "Resetting Bt");
         busy = true;
         mAdapter.cancelDiscovery();
         while (mAdapter.isDiscovering()) {
@@ -283,6 +289,7 @@ public class BtService extends Service {
 
         }
         busy = false;
+        Log.w(TAG, "Resetting Done");
     }
 
     public void showNotification(String title, String msg) {
@@ -305,6 +312,7 @@ public class BtService extends Service {
         if (SP.getBoolean("notifications_new_message", false))
             mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
     }
+
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -336,7 +344,7 @@ public class BtService extends Service {
         //Log.w(TAG, "SEND: " + message);
         if (message.length() > 0) {         // Check that there's actually something to send
             byte[] send = message.getBytes();     // Get the message bytes and tell the BtModule to write
-            mChatService.write(send);
+            mBtModule.write(send);
         }
     }
 
@@ -520,9 +528,11 @@ public class BtService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mBtModule.stop();
         unregisterReceiver(bReceiver); // Don't forget to unregister during onDestroy
         mHandler.removeCallbacksAndMessages(null);
         mAdapter.cancelDiscovery();
+
 
     }
 
@@ -603,9 +613,9 @@ public class BtService extends Service {
 
             mAdapter = BluetoothAdapter.getDefaultAdapter();
 
-            if (mChatService == null) {
-                mChatService = new BtModule(context, mHandler);
-                mChatService.start();
+            if (mBtModule == null) {
+                mBtModule = new BtModule(context, mHandler);
+                mBtModule.start();
             }
 
             for (String device_addr : devices) {
@@ -617,28 +627,28 @@ public class BtService extends Service {
                 BluetoothDevice device = mAdapter.getRemoteDevice(device_addr);
 
                 try {
-                    Log.i(TAG, "Waiting for Connection " + mChatService.getState());
-                    mChatService.connect(device);
+                    Log.i(TAG, "Waiting for Connection " + mBtModule.getState());
+                    mBtModule.connect(device);
                 } catch (Exception e) {
                     Log.w(TAG, "Error while stablishing connection ", e);
-                    mChatService.setState(Global.CONECTION_FAILED);
+                    mBtModule.setState(Global.CONECTION_FAILED);
 
                 }
 
                 //2-SEND MESSAGES
                 long startTime = System.currentTimeMillis();
 
-                while (mChatService.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
+                while (mBtModule.getState() < BtModule.STATE_CONNECTED) {        //Si(MODULO NO ESTA CONECTADO o MODULO NO TIENE ERROR) --> Sigue parado.
                     if (System.currentTimeMillis() - startTime > 3000) {
                         Log.e(TAG, "Time for stablishing connection exceeded");
-                        mChatService.setState(Global.CONECTION_FAILED);
+                        mBtModule.setState(Global.CONECTION_FAILED);
                         break;
                     }
                 }
 
                 long connectime = System.currentTimeMillis();
 
-                if (mChatService.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
+                if (mBtModule.getState() != Global.CONECTION_FAILED) {    //If there is no errros stablishing the connection
                     if (messages != null) {
                         JSONArray msg_payload = createMessageList(device_addr);
                         JSONArray hash_payload = createHashList(device_addr);
@@ -663,18 +673,22 @@ public class BtService extends Service {
 
                 }
 
-                if (mChatService.getState() == Global.CONECTION_FAILED + 1) {
+                if (mBtModule.getState() == Global.CONECTION_FAILED + 1) {
+                    Log.w(TAG, "Restart Bluetooh...");
+                    resetBt();
+                }
+                if (mBtModule.getState() == Global.CONECTION_FAILED) {
                     Log.w(TAG, "Restart Bluetooh...");
                     resetBt();
                 }
 
                 Log.i(TAG, "Restart for Connection...");
-                mChatService.stop();
-                while (mChatService.getState() != BtModule.STATE_NONE) {
+                mBtModule.stop();
+                while (mBtModule.getState() != BtModule.STATE_NONE) {
                 }
 
-                mChatService.start();
-                while (mChatService.getState() != BtModule.STATE_LISTEN) {
+                mBtModule.start();
+                while (mBtModule.getState() != BtModule.STATE_LISTEN) {
                 }
 
             }
@@ -685,8 +699,6 @@ public class BtService extends Service {
         public void cancel() {
             busy = false;
             mAdapter.cancelDiscovery();
-            //mChatService.stop();
-            //mChatService = null;
             ConnectionThread = null;
         }
 

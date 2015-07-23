@@ -1,4 +1,4 @@
-package org.imdea.panel.Wireless;
+package org.imdea.panel.Services.Wifi;
 
 import android.app.Service;
 import android.content.Intent;

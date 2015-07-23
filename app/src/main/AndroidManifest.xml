@@ -54,6 +54,7 @@
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="stateHidden">
 
@@ -101,21 +102,21 @@
 
 
         <service
-            android:name=".Services.mqttService"
+            android:name=".Services.mqtt.mqttService"
             android:enabled="true"
             android:exported="true">
 
         </service>
 
         <service
-            android:name=".Services.BtService"
+            android:name=".Services.Bluetooth.BtService"
             android:enabled="true"
             android:exported="true">
 
         </service>
 
         <service
-            android:name=".Wireless.WifiService"
+            android:name=".Services.Wifi.WifiService"
             android:enabled="true"
             android:exported="true">
 

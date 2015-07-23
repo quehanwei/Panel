@@ -37,7 +37,6 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -119,7 +118,8 @@ public class GeneralFragment extends Fragment {
                 text_field.setText("");
 
                 item.last_mac_address = Global.DEVICE_ADDRESS;
-                mqttService.sendToPeers(item);
+
+                //mqttService.sendToPeers(item);
 
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
@@ -153,30 +153,28 @@ public class GeneralFragment extends Fragment {
                 final BtMessage listItem = (BtMessage) listv.getItemAtPosition(position);
                 AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
 
-                final CharSequence[] shareItems = {"Delete", "Information"};
+                final CharSequence[] shareItems = {"Delete", "Information", "Share"};
                 builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
                             DBHelper.deleteMessage(Global.db, listItem);
-                            //Messages.deleteMessage(listItem);
                             refresh();
-                        } else {
+                        } else if (id == 1) {
                             Intent intent = new Intent(getActivity(), InfoActivity.class);
                             intent.putExtra("HASH", listItem.toHash());
                             startActivity(intent);
+                        } else {
+
+                            Intent sendIntent = new Intent();
+                            sendIntent.setAction(Intent.ACTION_SEND);
+                            sendIntent.putExtra(Intent.EXTRA_TEXT, "This is my text to send.");
+                            sendIntent.setType("text/plain");
+                            startActivity(Intent.createChooser(sendIntent, "Share"));
                         }
 
                     }
                 });
 
-                /*
-                builder.setCancelable(true).setPositiveButton("DELETE", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                DBHelper.deleteMessage(MainActivity.db,(BtMessage) listItem);
-                                refresh();
-                            }
-                        });
-                */
                 AlertDialog alert = builder.create();
                 alert.show();
                 return false;

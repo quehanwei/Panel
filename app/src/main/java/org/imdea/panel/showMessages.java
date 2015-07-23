@@ -38,7 +38,6 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Services.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -90,7 +89,7 @@ public class showMessages extends FragmentActivity {
                     item.setTag(tag);
                     DBHelper.insertMessage(Global.db, item);
                     text_field.setText("");
-                    mqttService.sendToPeers(item);
+                    //mqttService.sendToPeers(item);
 
                     TagsFragment.refresh();
 

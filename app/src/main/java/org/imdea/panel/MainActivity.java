@@ -38,7 +38,8 @@ import android.view.ViewConfiguration;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Services.mqttService;
+import org.imdea.panel.Services.Bluetooth.BtService;
+import org.imdea.panel.Services.mqtt.mqttService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 import java.lang.reflect.Field;
@@ -135,12 +136,9 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
-        // Initialize the BluetoothChatService to perform bluetooth connections
-        //if (mChatService == null) mChatService = new BluetoothChatService(this, mHandler);
-
-        //this.startService(new Intent(this, BtService.class));
+        this.startService(new Intent(this, BtService.class));
         //this.startService(new Intent(this, WifiService.class));
-        this.startService(new Intent(this, mqttService.class));
+        //this.startService(new Intent(this, mqttService.class));
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
@@ -209,6 +207,10 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         }
 
     }
+
+    /*
+        Enables the BT and captures the MAC address to use it as a UUID
+     */
     public void enableBt() {
 
         BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -281,16 +283,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
                 return true;
 
-            /*case R.id.action_newMsg:
-
-                args = new Bundle();
-                args.putBoolean("isTag",false);
-                InputFragment newMsgDialog = new InputFragment();
-                newMsgDialog.setArguments(args);
-                newMsgDialog.show(fm, "fragment_edit_name");
-
-                return true;*/
-
             case R.id.action_exit:
                 try {
                     stopService(new Intent(this, mqttService.class));
@@ -362,9 +354,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         }
         BluetoothAdapter.getDefaultAdapter().disable();
         //FtpUpload uploadData = new FtpUpload();
-        //mChatService.stop();
-
         super.onDestroy();
+
 
     }
 

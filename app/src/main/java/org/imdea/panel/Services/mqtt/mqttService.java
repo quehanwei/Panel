@@ -1,4 +1,4 @@
-package org.imdea.panel.Services;
+package org.imdea.panel.Services.mqtt;
 
 
 import android.app.NotificationManager;
@@ -179,7 +179,9 @@ public class mqttService extends Service implements MqttCallback {
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
 
         //Foreground Service notification
+        //final Intent notificationIntent = new Intent(this, MainActivity.class);
         final Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.drawable.ic_stat_name)
