@@ -38,8 +38,8 @@ import android.view.ViewConfiguration;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Services.Bluetooth.BtService;
 import org.imdea.panel.Services.mqtt.mqttService;
+import org.imdea.panel.Services.smoothBluetooth.smoothService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
 import java.lang.reflect.Field;
@@ -136,10 +136,10 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
-        this.startService(new Intent(this, BtService.class));
+        //this.startService(new Intent(this, BtService.class));
         //this.startService(new Intent(this, WifiService.class));
         //this.startService(new Intent(this, mqttService.class));
-
+        this.startService(new Intent(this, smoothService.class));
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
                 handleSendText(intent); // Handle text being sent

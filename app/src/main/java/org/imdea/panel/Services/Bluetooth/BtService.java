@@ -46,11 +46,11 @@ public class BtService extends Service {
     int n_connection = 0;
     boolean answering = true;
     int nodevices = 0;
+    NotificationManager mNotifyMgr;
     private String TAG = "BtService";
     private boolean busy = false;
     private boolean force_keepgoing = false;
     private ConnectionManager ConnectionThread = null;
-
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
 
@@ -186,7 +186,7 @@ public class BtService extends Service {
 
         messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
 
-        registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
+        registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during on
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
 
         //Foreground Service notification
@@ -307,7 +307,7 @@ public class BtService extends Service {
         Intent resultIntent = new Intent(this, MainActivity.class);
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         if (SP.getBoolean("notifications_new_message", false))
             mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
@@ -528,6 +528,7 @@ public class BtService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mNotifyMgr.cancelAll();
         mBtModule.stop();
         unregisterReceiver(bReceiver); // Don't forget to unregister during onDestroy
         mHandler.removeCallbacksAndMessages(null);
@@ -612,6 +613,8 @@ public class BtService extends Service {
             busy = true;
 
             mAdapter = BluetoothAdapter.getDefaultAdapter();
+
+            mBtModule.stopListening();
 
             if (mBtModule == null) {
                 mBtModule = new BtModule(context, mHandler);

@@ -80,10 +80,6 @@ public class BtModule {
             channelFixed = false;
             Log.e(TAG, "Error while executing reflecting speakChannel", e);
         }
-        /*
-
-
-         */
         try {
             createChannel = BluetoothDevice.class.getMethod("createInsecureRfcommSocket", new Class[]{int.class});
         } catch (Exception e) {
@@ -138,6 +134,13 @@ public class BtModule {
         if (mInsecureAcceptThread == null) {
             mInsecureAcceptThread = new AcceptThread();
             mInsecureAcceptThread.start();
+        }
+    }
+
+    public synchronized void stopListening() {
+        if (mInsecureAcceptThread != null) {
+            mInsecureAcceptThread.cancel();
+            mInsecureAcceptThread = null;
         }
     }
 
