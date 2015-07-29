@@ -31,7 +31,10 @@ public abstract class ItemAdapter extends BaseAdapter {
             BtMessage item = ((BtMessage) items.get(position));
 
             if (item.isMine) {
-                view = vi.inflate(R.layout.list_item_right, null);
+                if (item.isImage) {
+                    view = vi.inflate(R.layout.list_imag_right, null);
+                } else
+                    view = vi.inflate(R.layout.list_item_right, null);
             } else {
                 view = vi.inflate(R.layout.list_item_left, null);
 

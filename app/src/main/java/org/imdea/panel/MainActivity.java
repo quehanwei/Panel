@@ -23,9 +23,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
@@ -38,10 +40,12 @@ import android.view.ViewConfiguration;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.Bluetooth.BtService;
 import org.imdea.panel.Services.mqtt.mqttService;
-import org.imdea.panel.Services.smoothBluetooth.smoothService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.reflect.Field;
 
 @SuppressWarnings({"unchecked", "deprecation"})
@@ -136,10 +140,12 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
-        //this.startService(new Intent(this, BtService.class));
+
         //this.startService(new Intent(this, WifiService.class));
-        //this.startService(new Intent(this, mqttService.class));
-        this.startService(new Intent(this, smoothService.class));
+        if (Global.mqtt) this.startService(new Intent(this, mqttService.class));
+        else this.startService(new Intent(this, BtService.class));
+        //this.startService(new Intent(this, smoothService.class));
+
         if (Intent.ACTION_SEND.equals(action) && type != null) {
             if ("text/plain".equals(type)) {
                 handleSendText(intent); // Handle text being sent
@@ -159,8 +165,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
 
-                int outWidth = 100;
-                int outHeight = 100;
+                int outWidth = 300;
+                int outHeight = 300;
 
                 if (bitmap.getWidth() > bitmap.getHeight()) {
                     outHeight = (bitmap.getHeight() * outWidth) / bitmap.getWidth();
@@ -168,16 +174,27 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                     outWidth = (bitmap.getWidth() * outHeight) / bitmap.getHeight();
                 }
 
-                /*Bitmap resized_bm = Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true);
-                File sdCardDirectory = Environment.getExternalStorageDirectory();
-                File image = new File(sdCardDirectory, "test.png");
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.PNG, 10, outputStream);
+                Bitmap resized_bm = Bitmap.createScaledBitmap(bitmap, outWidth, outHeight, true);
 
-                BtMessage item = new BtMessage(id, SP.getString("username_field", "anonymous"));
+                String newPath = Environment.getExternalStorageDirectory().getPath() + "/floaty/";
+
+                if (!isExternalStorageWritable()) {
+                    newPath = Environment.getDataDirectory().getPath() + "/floaty/";
+                }
+
+                File directory = new File(newPath);
+                directory.mkdirs();
+                Log.w("MAIN", getRealPathFromURI(imageUri));
+                File outputFile = new File(newPath, getFilenameFromURI(imageUri) + ".bmp");
+                outputFile.createNewFile(); //added
+                FileOutputStream out = new FileOutputStream(outputFile);
+                resized_bm.compress(Bitmap.CompressFormat.PNG, 10, out);
+                out.close();
+
+                BtMessage item = new BtMessage(newPath + getFilenameFromURI(imageUri) + ".bmp", SP.getString("username_field", "anonymous"));
                 item.isImage = true;
 
-                DBHelper.insertMessage(Global.db, item);*/
+                DBHelper.insertMessage(Global.db, item);
 
                 GeneralFragment.refresh();
                 //Global.messages.add(item); // We add the message to the temporal list
@@ -206,6 +223,35 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
         }
 
+    }
+
+    public String getRealPathFromURI(Uri contentUri) {
+        String path = null;
+        String[] proj = {MediaStore.MediaColumns.DATA};
+        Cursor cursor = getContentResolver().query(contentUri, proj, null, null, null);
+        if (cursor.moveToFirst()) {
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
+            path = cursor.getString(column_index);
+        }
+        cursor.close();
+        return path;
+    }
+
+
+    public String getFilenameFromURI(Uri contentUri) {
+        String path = getRealPathFromURI(contentUri);
+        String filename = path.substring(path.lastIndexOf("/") + 1);
+        filename = filename.substring(0, filename.lastIndexOf("."));
+        return filename;
+    }
+
+    /* Checks if external storage is available for read and write */
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
     }
 
     /*
@@ -287,7 +333,7 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                 try {
                     stopService(new Intent(this, mqttService.class));
                     setResult(RESULT_OK);
-                    mqttService.disconnect();
+                    if (Global.mqtt) mqttService.disconnect();
                     finish();
                     //android.os.Process.killProcess(android.os.Process.myPid());
                 } catch (Exception e) {
@@ -352,8 +398,9 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         } catch (Exception e) {
             Log.e("Main", "Error unregistering messageReceiver");
         }
+
         BluetoothAdapter.getDefaultAdapter().disable();
-        //FtpUpload uploadData = new FtpUpload();
+        FtpUpload uploadData = new FtpUpload();
         super.onDestroy();
 
 

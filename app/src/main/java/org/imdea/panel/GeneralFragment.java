@@ -37,6 +37,7 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.mqtt.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
 import java.util.ArrayList;
@@ -62,10 +63,11 @@ public class GeneralFragment extends Fragment {
     public static void refresh() {
         if (messages != null) {
             messages.clear();
+            adapter.notifyDataSetChanged();
             messages.addAll(DBHelper.recoverMessages(Global.db));
-
+            adapter.notifyDataSetChanged();
         }
-        adapter.notifyDataSetChanged();
+
 
     }
 
@@ -119,7 +121,7 @@ public class GeneralFragment extends Fragment {
 
                 item.last_mac_address = Global.DEVICE_ADDRESS;
 
-                //mqttService.sendToPeers(item);
+                if (Global.mqtt) mqttService.sendToPeers(item);
 
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
@@ -130,11 +132,14 @@ public class GeneralFragment extends Fragment {
 
         adapter = new ItemAdapter(getActivity(), messages) {
             public void onEntrada(Object item, View view) {
+                BtMessage Btitem = (BtMessage) item;
+
                 TextView text_msg = (TextView) view.findViewById(R.id.msg);
-                text_msg.setText(((BtMessage) item).msg);
+                text_msg.setText(Btitem.msg);
+
                 TextView text_user = (TextView) view.findViewById(R.id.name);
-                text_user.setText(((BtMessage) item).user);
-                //refresh();
+                text_user.setText(Btitem.user);
+
             }
         };
 
