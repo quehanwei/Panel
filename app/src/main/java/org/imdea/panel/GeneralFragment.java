@@ -63,7 +63,7 @@ public class GeneralFragment extends Fragment {
     public static void refresh() {
         if (messages != null) {
             messages.clear();
-            adapter.notifyDataSetChanged();
+            adapter.notifyDataSetInvalidated();
             messages.addAll(DBHelper.recoverMessages(Global.db));
             adapter.notifyDataSetChanged();
         }

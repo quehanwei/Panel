@@ -15,7 +15,6 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -38,6 +37,7 @@ public class BtService extends Service {
 
     public static SQLiteDatabase db;
     public static volatile ArrayList<BtMessage> messages = new ArrayList<>();
+    final Timer myTimer = new Timer();
     ArrayList<String> devices = new ArrayList<>();
     BluetoothAdapter mAdapter;
     Context context;
@@ -94,13 +94,14 @@ public class BtService extends Service {
                 }
             }
 
+            /*
             if (BluetoothDevice.ACTION_UUID.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                Parcelable[] uuidExtra = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
+                (BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                //Parcelable[] uuidExtra = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
                 for (int i = 0; i < uuidExtra.length; i++) {
                     Log.v(TAG, "\n  Device: " + device.getName() + ", " + device + ", Service: " + uuidExtra[i].toString());
                 }
-            }
+            }*/
         }
     };
     private BtModule mBtModule = null;
@@ -198,7 +199,7 @@ public class BtService extends Service {
 
         registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during on
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
-        registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_UUID));
+        //registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_UUID));
 
         //Foreground Service notification
         //final Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -216,8 +217,6 @@ public class BtService extends Service {
 
         Log.i(TAG, "Refresh Freq set to: " + Global.refresh_freq);
         Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
-
-        final Timer myTimer = new Timer();
 
         myTimer.schedule(new TimerTask() {
             public void run() {
@@ -538,11 +537,37 @@ public class BtService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mNotifyMgr.cancelAll();
-        mBtModule.stop();
-        unregisterReceiver(bReceiver); // Don't forget to unregister during onDestroy
-        mHandler.removeCallbacksAndMessages(null);
-        mAdapter.cancelDiscovery();
+        myTimer.cancel();
+        try {
+            mNotifyMgr.cancelAll();
+        } catch (Exception e) {
+            Log.w(TAG, "No notifications");
+        }
+        try {
+            mBtModule.stop();
+        } catch (Exception e) {
+            Log.e(TAG, "ERROR", e);
+        }
+        try {
+            unregisterReceiver(bReceiver); // Don't forget to unregister during onDestroy
+        } catch (Exception e) {
+            Log.e(TAG, "ERROR", e);
+        }
+        try {
+            mHandler.removeCallbacksAndMessages(null);
+        } catch (Exception e) {
+            Log.e(TAG, "ERROR", e);
+        }
+        try {
+            mAdapter.cancelDiscovery();
+        } catch (Exception e) {
+            Log.e(TAG, "ERROR", e);
+        }
+        try {
+            mAdapter.cancelDiscovery();
+        } catch (Exception e) {
+            Log.e(TAG, "ERROR", e);
+        }
 
 
     }

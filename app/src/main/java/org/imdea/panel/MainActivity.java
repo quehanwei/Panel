@@ -83,7 +83,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         });
 
         Thread.setDefaultUncaughtExceptionHandler(onRuntimeError);
-
         SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
@@ -331,9 +330,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
 
             case R.id.action_exit:
                 try {
-                    stopService(new Intent(this, mqttService.class));
+
                     setResult(RESULT_OK);
-                    if (Global.mqtt) mqttService.disconnect();
                     finish();
                     //android.os.Process.killProcess(android.os.Process.myPid());
                 } catch (Exception e) {
@@ -391,6 +389,14 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
     }
 
     protected void onDestroy() {
+        super.onDestroy();
+        if (Global.mqtt) {
+            mqttService.disconnect();
+            stopService(new Intent(this, mqttService.class));
+        }
+
+        stopService(new Intent(this, BtService.class));
+
         Global.db.close();
         Global.db = null;
         try {
@@ -398,10 +404,8 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
         } catch (Exception e) {
             Log.e("Main", "Error unregistering messageReceiver");
         }
-
         BluetoothAdapter.getDefaultAdapter().disable();
         FtpUpload uploadData = new FtpUpload();
-        super.onDestroy();
 
 
     }

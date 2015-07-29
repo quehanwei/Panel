@@ -104,7 +104,7 @@ public class LogModule {
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
 
-        mcontext.registerReceiver(new BroadcastReceiver() {
+        BroadcastReceiver wifireceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
 
@@ -118,11 +118,15 @@ public class LogModule {
                 if (turnOff) mWifiManager.setWifiEnabled(false);
                 mcontext.unregisterReceiver(this);
             }
-        }, filter);
+        };
+
+        mcontext.registerReceiver(wifireceiver, filter);
 
         // start WiFi Scan
         mWifiManager.startScan();
 
 
     }
+
+
 }
