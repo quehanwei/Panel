@@ -143,7 +143,7 @@ public class DBHelper extends SQLiteOpenHelper {
                     //Log.i(TAG,"RecoverMessages: " + item.toString());
                 } while (c.moveToNext());
             }
-            c.close();
+            if(c!=null) c.close();
         } catch (Exception e) {
             Log.e("TAG", "Error Accesing to this element");
 
@@ -193,7 +193,7 @@ public class DBHelper extends SQLiteOpenHelper {
                 //Log.i(TAG, "RecoverMessages: " + item.toString());
             } while (c.moveToNext());
         }
-        c.close();
+        try{c.close();} catch(Exception e){}
         return messages;
     }
 
@@ -218,14 +218,23 @@ public class DBHelper extends SQLiteOpenHelper {
 
     public static void updateMessage(SQLiteDatabase db, BtMessage item) {
 
-        ContentValues newValues = new ContentValues();
-        newValues.put("devices", item.devices.toString()); //These Fields should be your String values of actual column names
-        newValues.put("hits", item.hits);
-        String[] whereArgs = {item.msg, item.origin_mac_address, item.origin_time, item.origin_date};
-        if (item.isGeneral) {
-            db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
-        } else {
-            db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+        BtMessage old_msg = getMessage(db, item.toHash());
+        old_msg.addDevice(item.last_mac_address);
+
+        if (old_msg != null) {
+            ContentValues newValues = new ContentValues();
+            newValues.put("devices", old_msg.devices.toString()); //These Fields should be your String values of actual column names
+            newValues.put("last_mac", item.last_mac_address);
+            newValues.put("last_date", item.last_date);
+            newValues.put("last_time", item.last_time);
+            newValues.put("hits", old_msg.hits +1);
+
+            String[] whereArgs = {item.msg, item.origin_mac_address, item.origin_time, item.origin_date};
+            if (item.isGeneral) {
+                db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+            } else {
+                db.update(item.tag, newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);
+            }
         }
 
     }
@@ -267,9 +276,9 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static void updateMessageHits(SQLiteDatabase db, BtMessage item) {
-
+        BtMessage old_msg = getMessage(db, item.toHash());
         ContentValues newValues = new ContentValues();
-        newValues.put("hits", item.hits);
+        newValues.put("hits", old_msg.hits +1);
         String[] whereArgs = {item.msg, item.origin_mac_address, item.origin_time, item.origin_date};
         if (item.isGeneral) {
             db.update("Messages", newValues, "message=? AND origin_mac=? AND origin_time=? AND origin_date=?", whereArgs);

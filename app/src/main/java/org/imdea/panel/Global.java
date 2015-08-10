@@ -13,7 +13,10 @@ public class Global {
     public static final int MESSAGE_DEVICE_NAME = 7;
     public static final int MESSAGE_TOAST = 8;
     public static final int CONECTION_FAILED = 9;
+
     public static final boolean mqtt = false;
+    public static final boolean infraestructureService = true;
+
     public static int refresh_freq = 0;
     public static int max_send_n = 0;
     public static SQLiteDatabase db;

@@ -38,9 +38,16 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewConfiguration;
 
+import com.parse.Parse;
+import com.parse.ParseObject;
+
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.Services.Bluetooth.BtService;
+import org.imdea.panel.Services.BtMesh.MeshService;
+import org.imdea.panel.Services.BtWiz.BtWizService;
+import org.imdea.panel.Services.Wifi.WifiService;
+import org.imdea.panel.Services.infraestructService.commService;
 import org.imdea.panel.Services.mqtt.mqttService;
 import org.imdea.panel.adapter.TabsPagerAdapter;
 
@@ -81,8 +88,14 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
                 System.exit(1);
             }
         });
-
         Thread.setDefaultUncaughtExceptionHandler(onRuntimeError);
+
+
+        /*
+        ParseObject testObject = new ParseObject("TestObject");
+        testObject.put("foo", "bar");
+        testObject.saveInBackground();*/
+
         SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         //Abrimos la base de datos 'DBUsuarios' en modo escritura
@@ -139,10 +152,14 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             }
         });
 
+        /* EXPERIMENTAL SERVICES */
 
         //this.startService(new Intent(this, WifiService.class));
-        if (Global.mqtt) this.startService(new Intent(this, mqttService.class));
-        else this.startService(new Intent(this, BtService.class));
+        //this.startService(new Intent(this, BtWizService.class));
+        //this.startService(new Intent(this, MeshService.class));
+        this.startService(new Intent(this, commService.class));
+        //if (Global.mqtt) this.startService(new Intent(this, mqttService.class));
+        //else this.startService(new Intent(this, BtService.class));
         //this.startService(new Intent(this, smoothService.class));
 
         if (Intent.ACTION_SEND.equals(action) && type != null) {

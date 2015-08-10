@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WifiModule extends BroadcastReceiver implements WifiP2pManager.ChannelListener, WifiP2pManager.ActionListener, WifiP2pManager.ConnectionInfoListener, WifiP2pManager.GroupInfoListener,
-        WifiP2pManager.PeerListListener {
+        WifiP2pManager.PeerListListener  {
 
 
     final int SERVER_PORT = 4576;
@@ -53,6 +53,7 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
         mChannel = mManager.initialize(context, context.getMainLooper(), this);
 
         LocalBroadcastManager.getInstance(context).registerReceiver(this, new IntentFilter("START_WIFI_SCAN"));
+
         context.registerReceiver(this, mIntentFilter);
 
         SP = PreferenceManager.getDefaultSharedPreferences(context);
@@ -78,6 +79,7 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
                 break;
             case WifiP2pManager.ERROR:
                 text = text + " error";
+                mManager.discoverPeers(mChannel, this);
                 break;
         }
 
@@ -90,71 +92,6 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
     }
 
     @Override
-    //this is the method that gets called when a broadcast intent is thrown
-    //by the android framework that we registered for during initialization
-    public void onReceive(Context context, Intent intent) {
-
-        String action = intent.getAction();
-
-        switch (action) {
-            case WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION:
-                int discoveryState = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, 0);
-                switch (discoveryState) {
-                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED:
-                        Log.i(TAG, "DISCOVERY STATE STARTED");
-                        break;
-                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED:
-                        Log.i(TAG, "DISCOVERY STATE STOPPED");
-                        //mManager.requestPeers(mChannel,this);
-                        break;
-                }
-                break;
-
-            case WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION:          //thrown after a success full discoverPeers call
-                //get the peer list via the onPeersChanged callback
-                Log.i(TAG, "Received peers-changed-action");
-                mManager.requestPeers(mChannel, this);
-                break;
-            case WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION:             //thrown when a connection is established/broken
-
-                Log.i(TAG, "Received connection-changed-action");
-
-                //grab the network info object and check if a connection was established
-                NetworkInfo networkinfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
-                Log.i(TAG, networkinfo.toString());
-                if (networkinfo.isConnected()) {
-                    Log.w(TAG, "Device Connected!");
-                    mManager.requestConnectionInfo(mChannel, this);
-                }
-                break;
-
-            case WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION:              //this is thrown when the wifi direct state changes on the device
-
-                //Log.i(TAG,"Received state-changed-action");
-
-                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
-                if (state == WifiP2pManager.WIFI_P2P_STATE_DISABLED) {
-                    Log.i(TAG, "WIFI_p2p_DISABLED");
-
-                    //setIsWifiP2pEnabled(true);
-                } else {
-                    Log.i(TAG, "WIFI_p2p_ENABLED");
-
-                }
-                break;
-
-            case WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION:                //thrown when device's general settings change?	
-                Log.i(TAG, "Received this-device-changed-action");
-                WifiP2pDevice this_device = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
-                if (this_device != null) Log.i(TAG, "Status: " + this_device.toString());
-                //thrown every x seconds by the scan alarm we setup during initialization
-
-
-        }
-
-    }
-
-    @Override
     public void onPeersAvailable(WifiP2pDeviceList peers) {
         Log.i(TAG, "PEERS:");
 
@@ -163,18 +100,37 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
 
         if (Listpeers.size() == 0) {
             Log.d(TAG, "No devices found");
+            mManager.discoverPeers(mChannel, this);
+
             return;
         } else {
             for (Object device : Listpeers) {
                 Log.i(TAG, "  ->" + device.toString());
             }
         }
+
     }
 
     @Override
     public void onConnectionInfoAvailable(WifiP2pInfo info) {
         //here check whether we're the group owner, then create server socket if so
         Log.i(TAG, "ConnectionInfo: " + info.toString());
+
+        // InetAddress from WifiP2pInfo struct.
+        String groupOwnerAddress = info.groupOwnerAddress.getHostAddress();
+        Log.i(TAG, "IP: " + groupOwnerAddress);
+
+        // After the group negotiation, we can determine the group owner.
+        if (info.groupFormed && info.isGroupOwner) {
+            // Do whatever tasks are specific to the group owner.
+            // One common case is creating a server thread and accepting
+            // incoming connections.
+        } else if (info.groupFormed) {
+            // The other device acts as the client. In this case,
+            // you'll want to create a client thread that connects to the group
+            // owner.
+        }
+
     }
 
     @Override
@@ -201,6 +157,80 @@ public class WifiModule extends BroadcastReceiver implements WifiP2pManager.Chan
 
     }
 
+    @Override
+    //this is the method that gets called when a broadcast intent is thrown
+    //by the android framework that we registered for during initialization
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        switch(action){
+            case WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION:
+                int discoveryState = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, 0);
+                switch (discoveryState) {
+                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED:
+                        Log.w(TAG, "DISCOVERY STATE STARTED");
+                        break;
+                    case WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED:
+                        Log.w(TAG, "DISCOVERY STATE STOPPED");
+                        mManager.requestPeers(mChannel, this);
+                        break;
+                }
+                break;
+
+            case WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION:          //thrown after a success full discoverPeers call
+                //get the peer list via the onPeersChanged callback
+                Log.i(TAG, "PeerList changed.");
+                // Call WifiP2pManager.requestPeers() to get a list of current peers
+                if (mManager != null)
+                    mManager.requestPeers(mChannel, this);
+                break;
+
+            case WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION:             //thrown when a connection is established/broken
+
+                Log.i(TAG, "Connection changed");
+
+                //grab the network info object and check if a connection was established
+                NetworkInfo networkinfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+                Log.i(TAG, networkinfo.toString());
+                if (networkinfo.isConnected()) {
+                    Log.w(TAG, "Device Connected!");
+                    // We are connected with the other device, request connection
+                    // info to find group owner IP
+
+                    mManager.requestConnectionInfo(mChannel, this);
+                }else {
+                    LocalBroadcastManager.getInstance(context).sendBroadcast(new Intent("START_WIFI_SCAN"));
+                }
+
+                if (mManager == null) {
+                    return;
+                }
+
+                break;
+
+            case WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION:              //this is thrown when the wifi direct state changes on the device
+
+                //Log.i(TAG,"Received state-changed-action");
+
+                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+                if (state == WifiP2pManager.WIFI_P2P_STATE_DISABLED) {
+                    Log.i(TAG, "WIFI_p2p_DISABLED");
+
+                    //setIsWifiP2pEnabled(true);
+                } else {
+                    Log.i(TAG, "WIFI_p2p_ENABLED");
+
+                }
+
+                break;
+
+            case WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION:                //thrown when device's general settings change?
+                Log.i(TAG, "Own config changed");
+                WifiP2pDevice this_device = intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
+                if (this_device != null) Log.i(TAG, "Status: " + this_device.toString());
+                //thrown every x seconds by the scan alarm we setup during initialization
+        }
+
+    }
 
 
 

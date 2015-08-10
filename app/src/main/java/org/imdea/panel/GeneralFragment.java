@@ -37,6 +37,7 @@ import android.widget.TextView;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
+import org.imdea.panel.Services.infraestructService.commService;
 import org.imdea.panel.Services.mqtt.mqttService;
 import org.imdea.panel.adapter.ItemAdapter;
 
@@ -122,6 +123,8 @@ public class GeneralFragment extends Fragment {
                 item.last_mac_address = Global.DEVICE_ADDRESS;
 
                 if (Global.mqtt) mqttService.sendToPeers(item);
+
+                getActivity().sendBroadcast( new Intent("org.imdea.panel.MESSAGE_WRITTEN"));
 
                 InputMethodManager inputManager = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);

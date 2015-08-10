@@ -2,57 +2,55 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.imdea.panel" >
 
-    <uses-permission
-        android:name="android.permission.BLUETOOTH"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_ADMIN"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_PRIVILEGED"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.INTERNET"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.CHANGE_WIFI_STATE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.ACCESS_WIFI_STATE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.WRITE_I"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.VIBRATE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.CHANGE_NETWORK_STATE"
-        android:required="true" />
-    <uses-permission
-        android:name="android.permission.ACCESS_NETWORK_STATE"
-        android:required="true" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:required="true" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:required="true" />
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" android:required="true" />
+    <uses-permission android:name="android.permission.INTERNET" android:required="true" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" android:required="true" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" android:required="true" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" android:required="true" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:required="true" />
+    <uses-permission android:name="android.permission.WRITE_I" android:required="true" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:required="true" />
+    <uses-permission android:name="android.permission.VIBRATE" android:required="true" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:required="true" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" android:required="true" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" android:required="true" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" android:required="true"/>
+    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
 
 
+    <permission
+        android:name="org.imdea.panel.permission.C2D_MESSAGE"
+        android:protectionLevel="signature"/>
+    <uses-permission android:name="org.imdea.panel.permission.C2D_MESSAGE"/>
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/CustomTheme">
+
+        <!-- Layer SDK has these for monitoring network, boot, and GCM -->
+        <receiver android:name="com.layer.sdk.services.LayerReceiver">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                <action android:name="android.intent.action.ANY_DATA_STATE"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.layer.sdk.services.GcmBroadcastReceiver"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                <category android:name="com.myapp.newstandalone"/>
+            </intent-filter>
+        </receiver>
+        <service android:name="com.layer.sdk.services.GcmIntentService"/>
 
         <activity
             android:name=".MainActivity"
@@ -108,6 +106,12 @@
             android:name=".Services.mqtt.mqttService"
             android:enabled="true"
             android:exported="true">
+        </service>
+
+        <service
+            android:name=".Services.BtWiz.BtWizService"
+            android:enabled="true"
+            android:exported="true">
 
         </service>
 
@@ -127,6 +131,20 @@
 
         <service
             android:name=".Services.smoothBluetooth.smoothService"
+            android:enabled="true"
+            android:exported="true">
+
+        </service>
+
+        <service
+            android:name=".Services.BtMesh.MeshService"
+            android:enabled="true"
+            android:exported="true">
+
+        </service>
+
+        <service
+            android:name=".Services.infraestructService.commService"
             android:enabled="true"
             android:exported="true">
 

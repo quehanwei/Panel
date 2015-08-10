@@ -52,6 +52,9 @@ public class BtService extends Service {
     private boolean busy = false;
     private boolean force_keepgoing = false;
     private ConnectionManager ConnectionThread = null;
+    private BtModule mBtModule = null;
+
+
     final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
 
@@ -104,7 +107,6 @@ public class BtService extends Service {
             }*/
         }
     };
-    private BtModule mBtModule = null;
     /**
      * The Handler that gets information back from the BtModule
      */
