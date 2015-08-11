@@ -80,6 +80,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
     int nodevices = 0;
     private boolean busy = false;
     public LayerClient layerClient;
+    Timer myTimer, logTimer;
 
     public final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -276,7 +277,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
         //DBHelper.deleteOutdated(Global.db);
 
-        final Timer myTimer = new Timer();
+        myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
 
@@ -294,10 +295,10 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
         }, 10000, Global.refresh_freq * 1000);
 
-        final Timer logTimer = new Timer();
+        logTimer = new Timer();
         logTimer.schedule(new TimerTask() {
             public void run() {
-                sendBatteryLog("BATTERY", String.valueOf(getBatteryLevel()));
+                sendBatteryLog();
                 getWifi();
 
             }
@@ -417,8 +418,8 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
 
 
-    public void messageArrived()  {
-                /*String msgstring = new String(msg.getPayload());
+    /*public void messageArrived()  {
+                String msgstring = new String(msg.getPayload());
 
                 //Toast.makeText(getApplicationContext(), msgstring, Toast.LENGTH_LONG).show()
 
@@ -474,10 +475,10 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
 
             }
-        });*/
-    }
+        });
+    }*/
 
-    public void sendBatteryLog(String title, String logtext) {
+    public void sendBatteryLog() {
         ParseObject gameScore = new ParseObject("Battery");
         gameScore.put("MAC", Global.DEVICE_ADDRESS);
         gameScore.put("date", new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
@@ -488,7 +489,12 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
     public float getBatteryLevel() {
         Intent batteryIntent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-        int level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int level;
+        try {
+            level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        }catch(Exception e){
+            return 0;
+        }
         int scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
 
         // Error checking that probably isn't needed but I added just in case.
@@ -514,7 +520,6 @@ public class commService extends Service implements LayerChangeEventListener.Bac
             public void onReceive(Context context, Intent intent) {
 
                 List<ScanResult> results = mWifiManager.getScanResults();
-                String s = "";
                 ArrayList<String> BSSID = new ArrayList<>();
                 ArrayList<String> SSID = new ArrayList<>();
 
@@ -591,39 +596,6 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
     }
 
-    public String[] getNewDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
-
-        // If the mac is in both lists, delete the mac.
-        //Later, return the remaining macs that would be the new ones
-        for (String newmac : newlist) {
-            for (String oldmac : oldlist) {
-                if (newmac.equals(oldmac)) newlist.remove(newmac);
-            }
-        }
-
-        return newlist.toArray(new String[newlist.size()]);
-    }
-
-
-    public String[] getOldDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
-
-        // We iterate over the old list
-        // if there is a coincidence, do nothing
-        // if one of the old lsit is not in the new one, save it
-        boolean isNew = true;
-        ArrayList<String> result = new ArrayList<>();
-        for (String oldmac : oldlist) {
-            for (String newmac : newlist) {
-                if (newmac.equals(oldmac)) isNew = false;
-            }
-            if (isNew) result.add(oldmac);
-            isNew = true;
-        }
-
-        return result.toArray(new String[result.size()]);
-
-    }
-
     //Called on connection success. The Quick Start App immediately tries to
     //authenticate a user (or, if a user is already authenticated, return to the conversation
     //screen).
@@ -669,7 +641,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         Log.d(TAG, "Authenticating with nonce: " + nonce);
 
         // Make a request to your backend to acquire a Layer identityToken
-        HashMap<String, Object> params = new HashMap<String, Object>();
+        HashMap<String, Object> params = new HashMap<>();
         params.put("userID", Global.DEVICE_ADDRESS);
         params.put("nonce", nonce);
         ParseCloud.callFunctionInBackground("generateToken", params, new FunctionCallback<String>() {
@@ -706,8 +678,15 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
     @Override
     public void onDestroy() {
+        Log.i(TAG,"Exiting");
+        layerClient.deauthenticate();
+        layerClient.disconnect();
+        logTimer.cancel();
+        myTimer.cancel();
+        mAdapter.disable();
         try {
             unregisterReceiver(bReceiver);
+
         } catch (Exception e) {
             Log.e(TAG, "UnregisterReceiver Error");
         }

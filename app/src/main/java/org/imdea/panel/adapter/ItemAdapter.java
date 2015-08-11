@@ -26,6 +26,7 @@ public abstract class ItemAdapter extends BaseAdapter {
     public View getView(int position, View view, ViewGroup parent) {
         LayoutInflater vi = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
+        /*
         while (view == null) {
 
             BtMessage item = ((BtMessage) items.get(position));
@@ -39,6 +40,18 @@ public abstract class ItemAdapter extends BaseAdapter {
                 view = vi.inflate(R.layout.list_item_left, null);
 
             }
+        }*/
+
+        BtMessage item = ((BtMessage) items.get(position));
+
+        if (item.isMine) {
+            if (item.isImage) {
+                view = vi.inflate(R.layout.list_imag_right, null);
+            } else
+                view = vi.inflate(R.layout.list_item_right, null);
+        } else {
+            view = vi.inflate(R.layout.list_item_left, null);
+
         }
 
         onEntrada (items.get(position), view);
