@@ -58,6 +58,7 @@ public class DBHelper extends SQLiteOpenHelper {
     INSERT A MESSAGE
     */
     public static void insertMessage(SQLiteDatabase db, BtMessage item) {
+        Log.i(TAG,"insertMessage");
         String s;
         SQLiteStatement insertStatement;
         if (item.isGeneral) {
@@ -96,7 +97,6 @@ public class DBHelper extends SQLiteOpenHelper {
             insertStatement.bindString(11, String.valueOf(item.TTL));
             insertStatement.bindString(12, String.valueOf(item.isImage ? 1 : 0));
             insertStatement.bindString(13, String.valueOf(item.isMine ? 1 : 0));
-            Log.i(TAG, "insertMessage " + insertStatement.toString());
 
         }
         //Log.i(TAG, "insertMessage " + s);
@@ -107,6 +107,7 @@ public class DBHelper extends SQLiteOpenHelper {
     RETURN A LIST OF MESSAGES FROM A TAG
      */
     public static ArrayList recoverMessagesByTag(SQLiteDatabase db, String Tag) {
+        Log.i(TAG,"recoverMessagesByTag");
 
         ArrayList<BtMessage> messages = new ArrayList<>();
         //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
@@ -128,6 +129,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static ArrayList recoverLiveMessages(SQLiteDatabase db, int max) {
+        Log.i(TAG,"recoverLiveMessages");
         ArrayList<BtMessage> messages = new ArrayList<>();
         Cursor c = null;
         try {
@@ -143,15 +145,14 @@ public class DBHelper extends SQLiteOpenHelper {
                     //Log.i(TAG,"RecoverMessages: " + item.toString());
                 } while (c.moveToNext());
             }
-            if(c!=null) c.close();
         } catch (Exception e) {
-            Log.e("TAG", "Error Accesing to this element");
+            Log.e(TAG, "Error Accesing to this element");
 
         }
-        if (c != null) c.close();
-
+        c.close();
 
         ArrayList<String> tags = getTags(db);
+
         for (Object tag : tags) {
             c = db.rawQuery("SELECT " + datafields + " FROM " + tag + " WHERE hits<" + String.valueOf(max), null);
 
@@ -160,11 +161,11 @@ public class DBHelper extends SQLiteOpenHelper {
                     // We use the constructor String mac,String msg,String user,String time,String date
                     try {
                         BtMessage item = new BtMessage(c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6), c.getString(7), c.getString(8), c.getInt(9), c.getInt(10), c.getInt(11));
-                        item.isMine = (c.getInt(13) != 0);
+                        item.isMine = (c.getInt(12) != 0);
                         item.setTag(tag.toString());   // Now we add the Tag
                         messages.add(item);
                     } catch (Exception e) {
-                        Log.e("TAG", "Error Accesing to this element");
+                        Log.e(TAG, "Error Accesing to this element");
                     }
 
                 } while (c.moveToNext());
@@ -176,6 +177,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static ArrayList recoverMessages(SQLiteDatabase db) {
+        Log.i(TAG,"recoverMessages");
         ArrayList<BtMessage> messages;
         messages = new ArrayList<>();
         //SELECT id,username,message,date,time FROM Messages WHERE hastag!='NONE'
@@ -188,7 +190,7 @@ public class DBHelper extends SQLiteOpenHelper {
                     item.isMine = (c.getInt(12) != 0);
                     messages.add(item);
                 } catch (Exception e) {
-                    Log.e("TAG", "Error Accesing to this element");
+                    Log.e(TAG, "Error Accesing to this element");
                 }
                 //Log.i(TAG, "RecoverMessages: " + item.toString());
             } while (c.moveToNext());
@@ -217,7 +219,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static void updateMessage(SQLiteDatabase db, BtMessage item) {
-
+        Log.i(TAG,"updateMessage");
         BtMessage old_msg = getMessage(db, item.toHash());
         old_msg.addDevice(item.last_mac_address);
 
@@ -240,6 +242,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static void updateUsername(SQLiteDatabase db, String old_username, String new_username) {
+        Log.i(TAG,"updateUsername");
 
         ContentValues newValues = new ContentValues();
         newValues.put("user", new_username); //These Fields should be your String values of actual column names
@@ -256,6 +259,7 @@ public class DBHelper extends SQLiteOpenHelper {
 
 
     public static void updateMessageDevices(SQLiteDatabase db, BtMessage item) {
+        Log.i(TAG,"updateMessageDevices");
 
         BtMessage old_msg = getMessage(db, item.toHash());
         old_msg.addDevice(item.last_mac_address);
@@ -276,6 +280,8 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static void updateMessageHits(SQLiteDatabase db, BtMessage item) {
+        Log.i(TAG,"updateMessageHits");
+
         BtMessage old_msg = getMessage(db, item.toHash());
         ContentValues newValues = new ContentValues();
         newValues.put("hits", old_msg.hits +1);
@@ -291,6 +297,8 @@ public class DBHelper extends SQLiteOpenHelper {
 
 
     public static ArrayList getTags(SQLiteDatabase db) {
+        Log.i(TAG,"getTags");
+
         // SELECT hastag FROM Messages WHERE hastag!='NONE'
         ArrayList<String> tags = new ArrayList<>();
         if (db != null) {
@@ -300,7 +308,6 @@ public class DBHelper extends SQLiteOpenHelper {
             if (c.moveToFirst()) {
                 //Recorremos el cursor hasta que no haya más registros
                 do {
-
                     tags.add(c.getString(0));
                     Log.i(TAG, "Tag: " + c.getString(0));
                 } while (c.moveToNext());
@@ -313,6 +320,8 @@ public class DBHelper extends SQLiteOpenHelper {
 
 
     public static int getNumberOfEntriesByTag(SQLiteDatabase db,String tag){
+        Log.i(TAG,"getNumberOfEntriesByTag");
+
         Cursor c = db.rawQuery("SELECT COUNT(origin_mac) FROM " + tag, null);
         c.moveToFirst();
         int n = c.getInt(0);
@@ -371,6 +380,8 @@ public class DBHelper extends SQLiteOpenHelper {
         return null;
     }
     public static void deleteMessage(SQLiteDatabase db,BtMessage item){
+        Log.i(TAG,"deleteMessage");
+
         String s;
         SQLiteStatement preparedStatement;
         if(item.isGeneral) {
@@ -400,6 +411,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public void onCreate(SQLiteDatabase db) {
+
         //db.execSQL("CREATE TABLE Messages(id TEXT, username TEXT,message TEXT,hastag TEXT,date TEXT,time TEXT)");
         db.execSQL("CREATE TABLE Tags(tagname TEXT)");
         db.execSQL("CREATE TABLE Messages(origin_mac TEXT,last_mac TEXT, user TEXT,message BLOB,origin_date TEXT,origin_time TEXT,last_date TEXT,last_time TEXT,devices TEXT,hits INTEGER,TTL INTEGER,isImage INTEGER,isMine INTEGER)");

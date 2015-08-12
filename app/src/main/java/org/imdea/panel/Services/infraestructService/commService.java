@@ -74,6 +74,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
     public static volatile ArrayList<Conversation> generalConversation = new ArrayList<>();
 
     public static ArrayList<String> devices = new ArrayList<>();
+    public static ArrayList<String> current_devices = new ArrayList<>();
     BluetoothAdapter mAdapter;
     SharedPreferences SP;
     int n_connection = 0;
@@ -81,6 +82,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
     private boolean busy = false;
     public LayerClient layerClient;
     Timer myTimer, logTimer;
+    NotificationManager mNotifyMgr;
 
     public final BroadcastReceiver bReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -103,6 +105,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                     if (nodevices == 5) resetBt();
                 } else {
                     Global.devices = devices;
+                    current_devices = devices;
                     nodevices = 0;
                     Log.i(TAG, "Discovery Finished: " + Global.devices.toString());
                     if(n_connection % 5 == 0){
@@ -132,13 +135,13 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                         generalConversation = null;
                         generalConversation = new ArrayList<>();
                         ConversationOptions generalConversationOptions = new ConversationOptions().distinct(false);
-                        for(String device:devices){
+                        for(String device:current_devices){
                             Conversation DeviceConversation =  layerClient.newConversation(generalConversationOptions,device);
                             generalConversation.add(DeviceConversation);
 
                         }
                     }catch (Exception e){
-                        Log.e(TAG,"Errror",e);
+                        Log.e(TAG,"Error",e);
                     }
                 }
                 Intent intent2 = new Intent("org.imdea.panel.STATUS_CHANGED");
@@ -149,40 +152,114 @@ public class commService extends Service implements LayerChangeEventListener.Bac
             if (action.equalsIgnoreCase("org.imdea.panel.MESSAGE_WRITTEN")) {
                 messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
                 sendToPeers(messages);
+                for(BtMessage msg : messages){
+                    DBHelper.updateMessageHits(Global.db, msg);
+                }
 
             }
         }
     };
 
 
-    public void sendToPeers(ArrayList<BtMessage> msgs) {
+    public String[] getNewDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
+
+        // If the mac is in both lists, delete the mac.
+        //Later, return the remaining macs that would be the new ones
+        for (String newmac : newlist) {
+            for (String oldmac : oldlist) {
+                if (newmac.equals(oldmac)) newlist.remove(newmac);
+            }
+        }
+
+        return newlist.toArray(new String[newlist.size()]);
+    }
+
+    public String[] getOldDevices(ArrayList<String> newlist, ArrayList<String> oldlist) {
+
+        // We iterate over the old list
+        // if there is a coincidence, do nothing
+        // if one of the old lsit is not in the new one, save it
+        boolean isNew = true;
+        ArrayList<String> result = new ArrayList<>();
+        for (String oldmac : oldlist) {
+            for (String newmac : newlist) {
+                if (newmac.equals(oldmac)) isNew = false;
+            }
+            if (isNew) result.add(oldmac);
+            isNew = true;
+        }
+
+        return result.toArray(new String[result.size()]);
+
+    }
+
+    /*public void sendToPeers(ArrayList<BtMessage> msgs) {
         // Sends the specified message
 
         if(generalConversation!=null){
-            for(Conversation conversation :  generalConversation){
+            for(Conversation conversation :  generalConversation) {
                 String destination_device = conversation.getParticipants().get(0);
-                Log.w(TAG,destination_device);
+                Log.w(TAG, destination_device);
                 ArrayList<MessagePart> messageparts = new ArrayList<>();
-                for(BtMessage msg : msgs){
-                    if(!msg.isAlreadySent(destination_device)){
+                for (BtMessage msg : msgs) {
+                    if (!msg.isAlreadySent(destination_device)) {
                         MessagePart messagePart = layerClient.newMessagePart("text/plain", msg.toJson().toString().getBytes());
                         messageparts.add(messagePart);
                     }
 
                 }
-                final Message message = layerClient.newMessage(messageparts);
-                conversation.send(message, new LayerProgressListener() {
-                    public void onProgressStart(MessagePart messagePart, Operation operation) {
+                if(!messageparts.isEmpty()){
+
+                    final Message message = layerClient.newMessage(messageparts);
+                    conversation.send(message, new LayerProgressListener() {
+                        public void onProgressStart(MessagePart messagePart, Operation operation) {
+                        }
+
+                        public void onProgressUpdate(MessagePart messagePart, LayerProgressListener.Operation operation, long l) {
+                        }
+
+                        public void onProgressComplete(MessagePart messagePart, Operation operation) {
+                            BtMessage item = new BtMessage(messagePart.toString());
+                            DBHelper.updateMessage(Global.db, item);
+                        }
+
+                        public void onProgressError(MessagePart messagePart, Operation operation, Throwable throwable) {
+                        }
+                    });
+                }
+            }
+        }
+    }*/
+
+        public void sendToPeers(ArrayList<BtMessage> msgs) {
+        // Sends the specified message
+
+        if(generalConversation!=null){
+            for(Conversation conversation :  generalConversation) {
+                String destination_device = conversation.getParticipants().get(0);
+                Log.w(TAG, destination_device);
+                ArrayList<MessagePart> messageparts = new ArrayList<>();
+                for (BtMessage msg : msgs) {
+                    if (!msg.isAlreadySent(destination_device)) {
+                        final Message message = layerClient.newMessage(layerClient.newMessagePart("text/plain", msg.toJson().toString().getBytes()));
+                        conversation.send(message, new LayerProgressListener() {
+                            public void onProgressStart(MessagePart messagePart, Operation operation) {
+                            }
+
+                            public void onProgressUpdate(MessagePart messagePart, LayerProgressListener.Operation operation, long l) {
+                            }
+
+                            public void onProgressComplete(MessagePart messagePart, Operation operation) {
+                                BtMessage item = new BtMessage(messagePart.toString());
+                                DBHelper.updateMessage(Global.db, item);
+                            }
+
+                            public void onProgressError(MessagePart messagePart, Operation operation, Throwable throwable) {
+                            }
+                        });
                     }
-                    public void onProgressUpdate(MessagePart messagePart, LayerProgressListener.Operation operation, long l) {
-                    }
-                    public void onProgressComplete(MessagePart messagePart, Operation operation) {
-                        BtMessage item = new BtMessage(messagePart.toString());
-                        DBHelper.updateMessage(Global.db, item);
-                    }
-                    public void onProgressError(MessagePart messagePart, Operation operation, Throwable throwable) {
-                    }
-                });
+                }
+
             }
         }
     }
@@ -208,10 +285,11 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                         String textMsg = new String(part.getData());
                         BtMessage item = new BtMessage(textMsg);
                         Log.w(TAG,"MSG "+ textMsg);
-                        if(addToDb(item))
-                        {
-                            sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
-                            showNotification(item.user,item.msg);
+                        if(!item.origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
+                            if (addToDb(item)) {
+                                sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
+                                showNotification(item.user, item.msg);
+                            }
                         }
                         break;
 
@@ -241,6 +319,8 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         layerClient.registerConnectionListener(this);
         layerClient.registerAuthenticationListener(this);
         layerClient.registerEventListener(this);
+
+        mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
 
         SP = PreferenceManager.getDefaultSharedPreferences(this);
@@ -276,7 +356,6 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         layerClient.connect();
 
         //DBHelper.deleteOutdated(Global.db);
-
         myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
@@ -340,7 +419,8 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                         case INSERT:
 
                             Log.i(TAG, "MSG Received: ");
-                            receiveByPeers((Message) change.getObject());
+                            Message msg_changed = (Message) change.getObject();
+                            receiveByPeers(msg_changed);
                             break;
 
                         case UPDATE:
@@ -358,7 +438,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
     public void sendLogMsg(BtMessage item) {
         ParseObject gameScore = new ParseObject("Message");
-        gameScore.put("date", new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
+        gameScore.put("date",  new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
         gameScore.put("time", new SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().getTime()));
         gameScore.put("From", item.origin_mac_address);
         gameScore.put("To", Global.DEVICE_ADDRESS);
@@ -380,7 +460,6 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         if (SP.getBoolean("notifications_new_message", true))
             mNotifyMgr.notify(87, mBuilder.build());
@@ -682,8 +761,12 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         layerClient.deauthenticate();
         layerClient.disconnect();
         logTimer.cancel();
+        logTimer.purge();
         myTimer.cancel();
+        myTimer.purge();
+        stopForeground(true);
         mAdapter.disable();
+        mNotifyMgr.cancelAll();
         try {
             unregisterReceiver(bReceiver);
 

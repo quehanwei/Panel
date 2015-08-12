@@ -45,7 +45,6 @@ import java.util.ArrayList;
 
 
 public class showMessages extends FragmentActivity {
-
     public static ListView listv;
     public static Button send_btn;
     public static EditText text_field;
@@ -55,18 +54,10 @@ public class showMessages extends FragmentActivity {
     public static SharedPreferences SP;
     public FragmentManager fm;
 
-    public static void refresh() {
-        messages.clear();
-        messages.addAll(DBHelper.recoverMessagesByTag(Global.db, tag));
-        adapter.notifyDataSetChanged();
-
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_messages);
-        refresh();
         tag = getIntent().getExtras().getString("tag");
         messages = DBHelper.recoverMessagesByTag(Global.db, tag);
         setTitle(tag);
@@ -86,6 +77,7 @@ public class showMessages extends FragmentActivity {
                 if (!text.isEmpty()) {
                     text = text.replace("\n", " ");
                     BtMessage item = new BtMessage(text, SP.getString("username_field", "anonymous"));
+                    Log.w("NEW MSG",item.toJson().toString());
                     item.isMine = true;
                     item.setTag(tag);
                     DBHelper.insertMessage(Global.db, item);
@@ -94,9 +86,13 @@ public class showMessages extends FragmentActivity {
                     if (Global.mqtt)
                         mqttService.sendToPeers(item);
 
+                    sendBroadcast(new Intent("org.imdea.panel.MESSAGE_WRITTEN"));
+
                     TagsFragment.refresh();
 
                 }
+
+
                 InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 inputManager.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
                 refresh();
@@ -147,6 +143,18 @@ public class showMessages extends FragmentActivity {
             }
 
         });
+    }
+
+    public static void refresh() {
+        if(messages!= null) {
+            messages.clear();
+            messages.addAll(DBHelper.recoverMessagesByTag(Global.db, tag));
+
+        }else{
+            messages = DBHelper.recoverMessagesByTag(Global.db, tag);
+        }
+        adapter.notifyDataSetChanged();
+
     }
 
     @Override
