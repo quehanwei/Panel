@@ -165,6 +165,9 @@ public class GeneralFragment extends Fragment {
                 builder.setCancelable(true).setItems(shareItems, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         if (id == 0) {
+                            Intent deleteIntent = new Intent();
+                            deleteIntent.setAction("org.imdea.panel.MESSAGE_DELETED");
+                            deleteIntent.putExtra("HASH", listItem.toHash());
                             DBHelper.deleteMessage(Global.db, listItem);
                             refresh();
                         } else if (id == 1) {

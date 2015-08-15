@@ -422,7 +422,6 @@ public class MainActivity extends FragmentActivity implements ActionBar.TabListe
             Log.e("Main", "Error unregistering messageReceiver");
         }
         BluetoothAdapter.getDefaultAdapter().disable();
-        FtpUpload uploadData = new FtpUpload();
 
 
     }

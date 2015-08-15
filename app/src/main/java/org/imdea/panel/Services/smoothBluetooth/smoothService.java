@@ -15,7 +15,6 @@ import android.widget.Toast;
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.Global;
-import org.imdea.panel.LogModule;
 import org.imdea.panel.MainActivity;
 import org.imdea.panel.R;
 
@@ -38,7 +37,6 @@ public class smoothService extends Service implements SmoothBluetooth.Listener {
     String deviceConnected = null;
     ArrayList<BtMessage> messages = new ArrayList<>();
     SharedPreferences SP;
-    LogModule nLog;
     NotificationManager mNotifyMgr;
     int intentos = 0;
     private List<Integer> mBuffer = new ArrayList<>();
@@ -60,9 +58,6 @@ public class smoothService extends Service implements SmoothBluetooth.Listener {
         SP = PreferenceManager.getDefaultSharedPreferences(this);
         Global.refresh_freq = Integer.parseInt(SP.getString("sync_frequency", "60"));
         Global.max_send_n = Integer.parseInt(SP.getString("ttl_opt", "300"));
-
-        nLog = new LogModule(this);
-
 
         final Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);

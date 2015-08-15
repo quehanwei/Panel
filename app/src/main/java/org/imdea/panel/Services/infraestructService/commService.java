@@ -38,7 +38,6 @@ import com.layer.sdk.query.Predicate;
 import com.layer.sdk.query.Query;
 import com.layer.sdk.query.SortDescriptor;
 import com.parse.FunctionCallback;
-import com.parse.ParseCrashReporting;
 import com.parse.Parse;
 import com.parse.ParseCloud;
 import com.parse.ParseException;
@@ -46,7 +45,6 @@ import com.parse.ParseObject;
 
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
-import org.imdea.panel.Database.Messages;
 import org.imdea.panel.Global;
 import org.imdea.panel.MainActivity;
 import org.imdea.panel.R;
@@ -54,24 +52,21 @@ import org.imdea.panel.R;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/*
-Provider ID             layer:///providers/cd952880-369f-11e5-89ac-fdeb230102e2
-Authentication key ID   layer:///keys/7d72b384-36e2-11e5-8c96-fdeb22010ca4
- */
 @SuppressWarnings({"unchecked", "deprecation"})
 
 public class commService extends Service implements LayerChangeEventListener.BackgroundThread, LayerConnectionListener, LayerAuthenticationListener  {
 
     private static final String TAG = "commService";
-    public static SQLiteDatabase db;
 
     public static volatile ArrayList<BtMessage> messages = new ArrayList<>();
-    public static volatile ArrayList<Conversation> generalConversation = new ArrayList<>();
+    public static volatile Conversation generalConversation;
 
     public static ArrayList<String> devices = new ArrayList<>();
     public static ArrayList<String> current_devices = new ArrayList<>();
@@ -119,27 +114,12 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
                     n_connection++;
 
-                    /*for (String device : getNewDevices(Global.devices, Global.old_devices)) {
-                        sendHandsake(device);
-                    }*/
-
-                    //if (!failedMessages.isEmpty()) sendFailedMessages();
-                    /*
-                    try {
-                        receiveByPeers();
-                    }catch(Exception e){
-                        Log.e(TAG,"Error receiven messages from conversation",e);
-                    }*/
-
                     try {
                         generalConversation = null;
-                        generalConversation = new ArrayList<>();
                         ConversationOptions generalConversationOptions = new ConversationOptions().distinct(false);
-                        for(String device:current_devices){
-                            Conversation DeviceConversation =  layerClient.newConversation(generalConversationOptions,device);
-                            generalConversation.add(DeviceConversation);
 
-                        }
+                        generalConversation =  layerClient.newConversation(generalConversationOptions,current_devices);
+
                     }catch (Exception e){
                         Log.e(TAG,"Error",e);
                     }
@@ -150,10 +130,23 @@ public class commService extends Service implements LayerChangeEventListener.Bac
             }
 
             if (action.equalsIgnoreCase("org.imdea.panel.MESSAGE_WRITTEN")) {
-                messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
+                //messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
                 sendToPeers(messages);
                 for(BtMessage msg : messages){
                     DBHelper.updateMessageHits(Global.db, msg);
+                    for(String device: devices){
+                            sendLogMsg(msg,device);
+                    }
+                }
+
+
+            }
+            if (action.equalsIgnoreCase("org.imdea.panel.MESSAGE_DELETED")) {
+                try {
+                    String hash = intent.getExtras().getString("HASH");
+                    deleteMsg(hash);
+                }catch(Exception e){
+                    Log.e(TAG,"Error remotely deleting one item");
                 }
 
             }
@@ -235,72 +228,31 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         // Sends the specified message
 
         if(generalConversation!=null){
-            for(Conversation conversation :  generalConversation) {
-                String destination_device = conversation.getParticipants().get(0);
-                Log.w(TAG, destination_device);
-                ArrayList<MessagePart> messageparts = new ArrayList<>();
+
                 for (BtMessage msg : msgs) {
-                    if (!msg.isAlreadySent(destination_device)) {
-                        final Message message = layerClient.newMessage(layerClient.newMessagePart("text/plain", msg.toJson().toString().getBytes()));
-                        conversation.send(message, new LayerProgressListener() {
-                            public void onProgressStart(MessagePart messagePart, Operation operation) {
-                            }
+                    final Message message = layerClient.newMessage(layerClient.newMessagePart("text/plain", msg.toJson().toString().getBytes()));
+                    generalConversation.send(message, new LayerProgressListener() {
+                        public void onProgressStart(MessagePart messagePart, Operation operation) {
+                        }
 
-                            public void onProgressUpdate(MessagePart messagePart, LayerProgressListener.Operation operation, long l) {
-                            }
+                        public void onProgressUpdate(MessagePart messagePart, LayerProgressListener.Operation operation, long l) {
+                        }
 
-                            public void onProgressComplete(MessagePart messagePart, Operation operation) {
-                                BtMessage item = new BtMessage(messagePart.toString());
-                                DBHelper.updateMessage(Global.db, item);
-                            }
+                        public void onProgressComplete(MessagePart messagePart, Operation operation) {
+                            BtMessage item = new BtMessage(messagePart.toString());
+                            DBHelper.updateMessage(Global.db, item);
+                        }
 
-                            public void onProgressError(MessagePart messagePart, Operation operation, Throwable throwable) {
-                            }
-                        });
-                    }
+                        public void onProgressError(MessagePart messagePart, Operation operation, Throwable throwable) {
+                        }
+                    });
+
                 }
 
-            }
+
         }
     }
 
-    public void receiveByPeers(Message message){
-        /*
-        Query query = Query.builder(Message.class)
-                    .predicate(new Predicate(Message.Property.CONVERSATION, Predicate.Operator.EQUAL_TO, generalConversation))
-                    .sortDescriptor(new SortDescriptor(Message.Property.POSITION, SortDescriptor.Order.ASCENDING))
-                    .build();
-
-        List<Message> results = layerClient.executeQuery(query, Query.ResultType.OBJECTS);*/
-
-        //for(Message message : results){
-            //String senderID = message.getSender().getUserId();        //The sender's user id
-            //You will also need to check the message's Mime Type (set when the message was sent) in order to know how to decode the message contents.
-
-            List<MessagePart> parts = message.getMessageParts();
-            for(MessagePart part : parts) {
-                switch (part.getMimeType()) {
-
-                    case "text/plain":
-                        String textMsg = new String(part.getData());
-                        BtMessage item = new BtMessage(textMsg);
-                        Log.w(TAG,"MSG "+ textMsg);
-                        if(!item.origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
-                            if (addToDb(item)) {
-                                sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
-                                showNotification(item.user, item.msg);
-                            }
-                        }
-                        break;
-
-                    case "image/jpeg":
-                        //Bitmap imageMsg = BitmapFactory.decodeByteArray(part.getData(), 0, part.getData().length);
-                        break;
-                }
-            }
-        //}
-
-    }
 
     /*
         SEND MESSAGES *******************************************************************************************
@@ -310,18 +262,21 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         Log.i(TAG, "Initiating ");
 
         // Option 1: Create a standard LayerClient object
-        layerClient = LayerClient.newInstance(getApplicationContext(), "layer:///apps/staging/cd96cd52-369f-11e5-bc78-fdeb230102e2");
+        layerClient = LayerClient.newInstance(getApplicationContext(), "layer:///apps/staging/598024d4-4114-11e5-aa8a-d85d1501089a");
 
         // Initializing parse for logging
         //if(!ParseCrashReporting.isCrashReportingEnabled())  ParseCrashReporting.enable(this);
-        Parse.initialize(this, "83P6Ag7ABhxNaIWxGdBudnQlI73zFFo5ELDpgOwF", "pSLa7BTd7GPgWDyeQITZZ5rhK6gVzfKU8i69CSLU");
 
+        try {
+            Parse.initialize(this, "3wOYPxjK45Yw9GTm11pznKEf3GF5UJCDf3fGiOBn", "Jl2aNsgl9dV8Wbir3YrsACfUQEY00H9LRyfonfds");
+        }catch(Exception e) {
+            Log.e(TAG,"Unable to initialize Parse");
+        }
         layerClient.registerConnectionListener(this);
         layerClient.registerAuthenticationListener(this);
         layerClient.registerEventListener(this);
 
         mNotifyMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
 
         SP = PreferenceManager.getDefaultSharedPreferences(this);
 
@@ -336,6 +291,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         registerReceiver(bReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND)); // Don't forget to unregister during onDestroy
         registerReceiver(bReceiver, new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED));
         registerReceiver(bReceiver, new IntentFilter("org.imdea.panel.MESSAGE_WRITTEN"));
+        registerReceiver(bReceiver, new IntentFilter("org.imdea.panel.MESSAGE_DELETED"));
         //Foreground Service notification
         //final Intent notificationIntent = new Intent(this, MainActivity.class);
         final Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -348,7 +304,6 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                 .setContentIntent(PendingIntent.getActivity(this, 0, notificationIntent, 0));
         startForeground(2357, mBuilder.build());
 
-        //nLog = new LogModule(this);
         Log.i(TAG, "Refresh Freq set to: " + Global.refresh_freq);
         Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
 
@@ -356,11 +311,12 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         layerClient.connect();
 
         //DBHelper.deleteOutdated(Global.db);
+
         myTimer = new Timer();
         myTimer.schedule(new TimerTask() {
             public void run() {
 
-                messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
+                //messages = DBHelper.recoverLiveMessages(Global.db, Global.max_send_n);
                 Log.i(TAG, "MESG: " + messages.size() + " " + String.valueOf(busy));
 
                 /*
@@ -383,6 +339,8 @@ public class commService extends Service implements LayerChangeEventListener.Bac
             }
 
         }, 30000, 60000*15);
+
+
 
         return Service.START_NOT_STICKY;
     }
@@ -414,13 +372,30 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                     break;
 
                 case MESSAGE:
-                    Log.w(TAG,"Message changed");
+                    //Log.w(TAG,"Message changed");
                     switch (change.getChangeType()) {
                         case INSERT:
 
-                            Log.i(TAG, "MSG Received: ");
-                            Message msg_changed = (Message) change.getObject();
-                            receiveByPeers(msg_changed);
+                            Message message = (Message) change.getObject();
+                            MessagePart msg = message.getMessageParts().get(0);
+                            switch (msg.getMimeType()) {
+
+                                case "text/plain":
+                                    String textMsg = new String(msg.getData());
+                                    BtMessage item = new BtMessage(textMsg);
+                                    Log.w(TAG,"Msg Received "+ textMsg + " -> " + item.toHash());
+                                    if(!item.origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
+                                        if (addToDb(item)) {
+                                            sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
+                                            showNotification(item.user, item.msg);
+                                        }
+                                    }
+                                    break;
+
+                                case "image/jpeg":
+                                    //Bitmap imageMsg = BitmapFactory.decodeByteArray(part.getData(), 0, part.getData().length);
+                                    break;
+                            }
                             break;
 
                         case UPDATE:
@@ -436,12 +411,12 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         }
     }
 
-    public void sendLogMsg(BtMessage item) {
+    public void sendLogMsg(BtMessage item,String toDevice) {
         ParseObject gameScore = new ParseObject("Message");
         gameScore.put("date",  new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
         gameScore.put("time", new SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().getTime()));
-        gameScore.put("From", item.origin_mac_address);
-        gameScore.put("To", Global.DEVICE_ADDRESS);
+        gameScore.put("From", Global.DEVICE_ADDRESS);
+        gameScore.put("To", toDevice);
         gameScore.put("Hash", item.toHash());
         gameScore.saveEventually();
     }
@@ -462,7 +437,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         mBuilder.setContentIntent(resultPendingIntent);
 
         if (SP.getBoolean("notifications_new_message", true))
-            mNotifyMgr.notify(87, mBuilder.build());
+            mNotifyMgr.notify(new Random().nextInt(100), mBuilder.build());
         //new Random().nextInt(100)
     }
 
@@ -474,88 +449,77 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         return true;
     }
 
+    // AddToDb receives a Messages and insert it into de SQLite database, if its necesary. Furthermore, it returns true if the message
+    // was a new one and false if it was a messge already received.
     public synchronized boolean addToDb(BtMessage item) {
 
         Boolean Success = false;
-        DBHelper msg_database = new DBHelper(getApplicationContext(), "messages.db", null, 1);
-        db = msg_database.getWritableDatabase();
 
         if (!item.isGeneral) {          // If It is a Tag
-            if (DBHelper.existTag(db, item.tag)) if (DBHelper.isNew(db, item)) {
-                DBHelper.insertMessage(db, item);
+            if (DBHelper.existTag(Global.db, item.tag)) if (DBHelper.isNew(Global.db, item)) {
+                DBHelper.insertMessage(Global.db, item);
                 Success = true;
-            } else DBHelper.updateMessageDevices(db, item);
+            }
+            else DBHelper.updateMessageDevices(Global.db, item);
         } else {
-            if (DBHelper.isNew(db, item)) DBHelper.insertMessage(db, item);
-            else DBHelper.updateMessageDevices(db, item);
+            if (DBHelper.isNew(Global.db, item)) DBHelper.insertMessage(Global.db, item);
+            //else DBHelper.updateMessageDevices(Global.db, item);
             Success = true;
         }
 
-        db.close();
         return Success;
     }
 
 
-
-    /*public void messageArrived()  {
-                String msgstring = new String(msg.getPayload());
-
-                //Toast.makeText(getApplicationContext(), msgstring, Toast.LENGTH_LONG).show()
-
-                //That`s a virtual discovery, when a device can see the others, some sort of handsake to wanr them
-                if (msgstring.charAt(0) == 'X') {
-                    Log.w(TAG, "HELLO from " + msgstring.substring(1, 18));
-                    boolean isNew = true;
-
-                    for (String device : Global.devices) {
-                        if (msgstring.substring(1, 18).equals(device)) {
-                            isNew = false;
-                            break;
-                        }
-
-                    }
-                    if (isNew) Global.devices.add(msgstring.substring(1, 18));
-
-                    for (String device : devices) {
-                        if (msgstring.substring(1, 18).equals(device)) {
-                            isNew = false;
-                            break;
-                        }
-
-                    }
-                    if (isNew) devices.add(msgstring.substring(1, 18));
+    public void deleteMsg(String hash){
+           // Fetches all Message objects in random order
+           Query query = Query.builder(Message.class).build();
+           List<Message> results = layerClient.executeQuery(query, Query.ResultType.OBJECTS);
+           for(Message result:results){
+               String textMsg = new String(result.getMessageParts().get(0).getData());
+               BtMessage item = new BtMessage(textMsg);
+               if(item.toHash().equals(hash)) result.delete(LayerClient.DeletionMode.LOCAL);
+           }
 
 
-                } else if (!msgstring.contains("{")) {
-                    String hash = msgstring.substring(17);
-                    String macAddr = msgstring.substring(0, 17);
-                    Log.w(TAG, "ACK from " + macAddr + " " + hash);
+    }
 
-                    try {
-                        BtMessage item = DBHelper.getMessage(Global.db, hash);
-                        if (item != null) {
-                            item.addDevice(macAddr);
-                            DBHelper.updateMessage(Global.db, item);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error Updating Message");
-                    }
+    public void deleteOld() {
+        long DAY_IN_MS = 1000 * 60 * 60 * 24;
+        Date lastWeek = new Date(System.currentTimeMillis() - (1 * DAY_IN_MS));
 
+            Query query = Query.builder(Message.class)
+                    .predicate(new Predicate(Message.Property.SENT_AT, Predicate.Operator.LESS_THAN, lastWeek))
+                    .sortDescriptor(new SortDescriptor(Message.Property.RECEIVED_AT, SortDescriptor.Order.DESCENDING))
+                    .limit(100)
+                    .build();
 
-                } else {
-                    BtMessage item = new BtMessage(msgstring);
-                    Log.w(TAG, "MSG from " + item.last_mac_address + " -" + item.msg);
-                    showNotification(item.user, item.msg);
-                    addToDb(item);
-                    sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
-                    sendAck(item);
-
-                }
-
-
+            List<Message> results = layerClient.executeQuery(query, Query.ResultType.OBJECTS);
+            for(Message result : results){
+                String textMsg = new String(result.getMessageParts().get(0).getData());
+                BtMessage item = new BtMessage(textMsg);
+                messages.remove(item);
+                DBHelper.deleteMessage(Global.db,item);
+                result.delete(LayerClient.DeletionMode.LOCAL);
             }
-        });
-    }*/
+        }
+
+    public void deleteAll() {
+        long DAY_IN_MS = 1000 * 60 * 60 * 24;
+        Date lastWeek = new Date(System.currentTimeMillis() - (7 * DAY_IN_MS));
+
+        Query query = Query.builder(Message.class)
+                .predicate(new Predicate(Message.Property.SENT_AT, Predicate.Operator.LESS_THAN, lastWeek))
+                .sortDescriptor(new SortDescriptor(Message.Property.RECEIVED_AT, SortDescriptor.Order.DESCENDING))
+                .build();
+
+        List<Message> results = layerClient.executeQuery(query, Query.ResultType.OBJECTS);
+        for(Message result : results){
+            Log.e(TAG,"DELETING"+ result.getId());
+            result.delete(LayerClient.DeletionMode.ALL_PARTICIPANTS);
+        }
+    }
+
 
     public void sendBatteryLog() {
         ParseObject gameScore = new ParseObject("Battery");
@@ -739,6 +703,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
 
         //Start the conversation view after a successful authentication
         Log.v(TAG, "Authentication successful");
+
     }
 
     //Called when there was a problem authenticating
@@ -758,14 +723,15 @@ public class commService extends Service implements LayerChangeEventListener.Bac
     @Override
     public void onDestroy() {
         Log.i(TAG,"Exiting");
-        layerClient.deauthenticate();
+
+        /*layerClient.deauthenticate();
         layerClient.disconnect();
         logTimer.cancel();
         logTimer.purge();
         myTimer.cancel();
         myTimer.purge();
         stopForeground(true);
-        mAdapter.disable();
+        mAdapter.disable();*/
         mNotifyMgr.cancelAll();
         try {
             unregisterReceiver(bReceiver);

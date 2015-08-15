@@ -12,6 +12,9 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.net.wifi.ScanResult;
+import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -19,16 +22,21 @@ import android.preference.PreferenceManager;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import com.parse.Parse;
+import com.parse.ParseObject;
+
 import org.imdea.panel.Database.BtMessage;
 import org.imdea.panel.Database.DBHelper;
 import org.imdea.panel.Global;
-import org.imdea.panel.LogModule;
 import org.imdea.panel.MainActivity;
 import org.imdea.panel.R;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -42,7 +50,6 @@ public class BtService extends Service {
     BluetoothAdapter mAdapter;
     Context context;
     SharedPreferences SP;
-    LogModule nLog = null;
     String currentDevice = "";
     int n_connection = 0;
     boolean answering = true;
@@ -84,9 +91,7 @@ public class BtService extends Service {
                         ConnectionThread = new ConnectionManager();
                         ConnectionThread.start();
                     }*/
-                    nLog.writeToLog("PanelLog", "BLUETOOTH", devices.toString());
                     if (n_connection % 5 == 0) {
-                        nLog.getWifi();
                         //nLog.getLocation();
                     }
 
@@ -96,15 +101,6 @@ public class BtService extends Service {
                     ConnectionThread.start();
                 }
             }
-
-            /*
-            if (BluetoothDevice.ACTION_UUID.equals(action)) {
-                (BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                //Parcelable[] uuidExtra = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
-                for (int i = 0; i < uuidExtra.length; i++) {
-                    Log.v(TAG, "\n  Device: " + device.getName() + ", " + device + ", Service: " + uuidExtra[i].toString());
-                }
-            }*/
         }
     };
     /**
@@ -185,6 +181,11 @@ public class BtService extends Service {
 
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        try {
+            Parse.initialize(this, "3wOYPxjK45Yw9GTm11pznKEf3GF5UJCDf3fGiOBn", "Jl2aNsgl9dV8Wbir3YrsACfUQEY00H9LRyfonfds");
+        }catch(Exception e) {
+
+        }
         SP = PreferenceManager.getDefaultSharedPreferences(this);
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -214,8 +215,6 @@ public class BtService extends Service {
                 .setContentText("Tap to open it")
                 .setContentIntent(PendingIntent.getActivity(this, 0, notificationIntent, 0));
         startForeground(2357, mBuilder.build());
-
-        nLog = new LogModule(this);
 
         Log.i(TAG, "Refresh Freq set to: " + Global.refresh_freq);
         Log.i(TAG, "Max Resend Number set to: " + Global.max_send_n);
@@ -273,6 +272,16 @@ public class BtService extends Service {
             }
 
         }, 30000);
+
+        final Timer logTimer = new Timer();
+        logTimer.schedule(new TimerTask() {
+            public void run() {
+                sendBatteryLog();
+                getWifi();
+
+            }
+
+        }, 30000, 60000*15);
 
     }
 
@@ -640,6 +649,76 @@ public class BtService extends Service {
         return my_array;
     }
 
+    public void sendBatteryLog() {
+        ParseObject gameScore = new ParseObject("Battery");
+        gameScore.put("MAC", Global.DEVICE_ADDRESS);
+        gameScore.put("date", new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
+        gameScore.put("time", new SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().getTime()));
+        gameScore.put("value", getBatteryLevel());
+        gameScore.saveEventually();
+    }
+
+    public float getBatteryLevel() {
+        Intent batteryIntent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        int level;
+        try {
+            level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        }catch(Exception e){
+            return 0;
+        }
+        int scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+
+        // Error checking that probably isn't needed but I added just in case.
+        if (level == -1 || scale == -1) {
+            return 50.0f;
+        }
+
+        return ((float) level / (float) scale) * 100.0f;
+    }
+
+    public void getWifi() {
+        final WifiManager mWifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+        if (mWifiManager.getWifiState() != WifiManager.WIFI_STATE_ENABLED) {
+            mWifiManager.setWifiEnabled(true);
+        }
+
+        // register WiFi scan results receiver
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+
+                List<ScanResult> results = mWifiManager.getScanResults();
+                ArrayList<String> BSSID = new ArrayList<>();
+                ArrayList<String> SSID = new ArrayList<>();
+
+                for (ScanResult ap : results) {
+                    BSSID.add(ap.BSSID);
+                    SSID.add(ap.SSID);
+                }
+                try {
+                    unregisterReceiver(this);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error unregistering");
+                }
+                ParseObject gameScore = new ParseObject("Wifi");
+                gameScore.put("MAC", Global.DEVICE_ADDRESS);
+                gameScore.put("date", new SimpleDateFormat("yyyy.MM.dd").format(Calendar.getInstance().getTime()));
+                gameScore.put("time", new SimpleDateFormat("HH:mm:ss").format(Calendar.getInstance().getTime()));
+                gameScore.addAllUnique("SSID", SSID);
+                gameScore.addAllUnique("BSSID", BSSID);
+                gameScore.saveEventually();
+            }
+        }, filter);
+
+        // start WiFi Scan
+        mWifiManager.startScan();
+
+
+    }
+
     private class ConnectionManager extends Thread {
 
         public ConnectionManager() {
@@ -704,7 +783,6 @@ public class BtService extends Service {
                             //3-RECEIVE HASHES
                             //4-BYE
                             long sendtime = System.currentTimeMillis();
-                            nLog.writeTimings(currentDevice, messages.hashCode(), starttime, connectime, sendtime);
 
                         } else {
                             Log.w(TAG, "No message***");

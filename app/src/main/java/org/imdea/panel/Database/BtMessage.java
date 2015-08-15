@@ -320,10 +320,11 @@ public class BtMessage {
     }
 
     public String toHash() {
+        String hashElements = this.origin_mac_address+this.msg+this.origin_date+this.origin_time;
         String s = "";
         try {
             MessageDigest m = MessageDigest.getInstance("MD5");
-            m.update(this.toString().getBytes(), 0, this.toString().length());
+            m.update(hashElements.toString().getBytes(), 0, hashElements.toString().length());
             s = new BigInteger(1, m.digest()).toString(16);
         } catch (Exception e) {
             Log.e("BtMesssage", "Error generating hash");
