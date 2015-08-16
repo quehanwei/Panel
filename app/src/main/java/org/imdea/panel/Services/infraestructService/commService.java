@@ -66,6 +66,7 @@ public class commService extends Service implements LayerChangeEventListener.Bac
     private static final String TAG = "commService";
 
     public static volatile ArrayList<BtMessage> messages = new ArrayList<>();
+    public static volatile ArrayList<String> hashes = new ArrayList<>();
     public static volatile Conversation generalConversation;
 
     public static ArrayList<String> devices = new ArrayList<>();
@@ -351,6 +352,13 @@ public class commService extends Service implements LayerChangeEventListener.Bac
         return null;
     }
 
+    boolean isNewHash(String receivedhash){
+        for(String hash : hashes){
+            if(hash.equals(receivedhash)) return false;
+        }
+        return true;
+    }
+
     public void onEventAsync(LayerChangeEvent event) {
         List<LayerChange> changes = event.getChanges();
         for(LayerChange change: changes){
@@ -386,8 +394,11 @@ public class commService extends Service implements LayerChangeEventListener.Bac
                                     Log.w(TAG,"Msg Received "+ textMsg + " -> " + item.toHash());
                                     if(!item.origin_mac_address.equals(Global.DEVICE_ADDRESS)) {
                                         if (addToDb(item)) {
-                                            sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
-                                            showNotification(item.user, item.msg);
+                                            if(isNewHash(item.toHash())) {
+                                                sendBroadcast(new Intent("org.imdea.panel.MSG_RECEIVED")); // Now we warn the app that we received a new message
+                                                showNotification(item.user, item.msg);
+                                                hashes.add(item.toHash());
+                                            }
                                         }
                                     }
                                     break;

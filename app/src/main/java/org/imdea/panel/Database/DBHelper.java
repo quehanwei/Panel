@@ -259,12 +259,13 @@ public class DBHelper extends SQLiteOpenHelper {
 
 
     public static void updateMessageDevices(SQLiteDatabase db, BtMessage item) {
-        Log.i(TAG,"updateMessageDevices");
+        Log.i(TAG, "updateMessageDevices");
 
         BtMessage old_msg = getMessage(db, item.toHash());
-        old_msg.addDevice(item.last_mac_address);
 
         if (old_msg != null) {
+            old_msg.addDevice(item.last_mac_address);
+
             ContentValues newValues = new ContentValues();
             newValues.put("devices", old_msg.devices.toString()); //These Fields should be your String values of actual column names
             newValues.put("last_mac", item.last_mac_address);
@@ -342,7 +343,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public static BtMessage getMessage(SQLiteDatabase db, String hash) {
-
+        Log.i(TAG,"GetMessage");
         Cursor c;
 
         c = db.rawQuery("SELECT " + datafields + " FROM Messages", null);
