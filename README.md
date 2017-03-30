@@ -8,9 +8,9 @@ It's still under development, but you can download de Beta Version [**HERE**](ht
 #### For more information, please go to the [**wiki**](https://github.com/maesoser/Panel/wiki)
 ##### Here you've some screenshots:
 
-<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png" alt="Main" width="360px" height="540px">
+![IMG 1](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img1.png)
 
-<img src="https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img2.png" alt="Menu Options" width="360px" height="540px" align:"center">
+![IMG 2](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/img2.png)
 
 ![Packet Structure](https://raw.githubusercontent.com/maesoser/Panel/master/screenshots/Packets.png "Packet Structure")
 
